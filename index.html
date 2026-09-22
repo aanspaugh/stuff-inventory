@@ -306,6 +306,41 @@
     .sheet .empty { padding: 2rem 1rem 1rem; }
     .sheet .empty > svg { width: 100px; height: 80px; }
 
+    /* ── Search view ────────────────────────────────────── */
+    .search-view {
+      position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
+      opacity: 0; visibility: hidden; transform: translateY(-10px);
+      transition: opacity .22s, transform .3s var(--ease), visibility 0s .3s;
+    }
+    .search-view.open { opacity: 1; visibility: visible; transform: none; transition: opacity .22s, transform .3s var(--ease); }
+    .search-bar {
+      position: sticky; top: 0; z-index: 2; padding: calc(.7rem + env(safe-area-inset-top)) .85rem .75rem;
+      background: linear-gradient(135deg, #0f172a 0%, #172554 60%, #1e3a8a 100%); box-shadow: 0 6px 24px rgba(15,23,42,.25);
+    }
+    .search-in { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; }
+    .search-field { position: relative; flex: 1; min-width: 0; }
+    .search-field svg { position: absolute; left: .85rem; top: 50%; width: 19px; height: 19px; transform: translateY(-50%); color: #93c5fd; pointer-events: none; }
+    .search-field input {
+      width: 100%; height: 46px; padding: 0 .9rem 0 2.6rem; border-radius: 14px; outline: none;
+      border: 1.5px solid rgba(255,255,255,.16); background: rgba(255,255,255,.1); color: #fff; font: inherit; font-size: 1rem;
+      transition: border-color .15s, background .15s;
+    }
+    .search-field input::placeholder { color: #93c5fd; opacity: .8; }
+    .search-field input:focus { border-color: #60a5fa; background: rgba(255,255,255,.14); }
+    .search-field input::-webkit-search-cancel-button { -webkit-appearance: none; }
+    .search-close { flex-shrink: 0; height: 46px; padding: 0 .4rem; border: none; background: none; color: #bfdbfe; font-size: .95rem; font-weight: 600; }
+    .search-body { max-width: 760px; margin: 0 auto; padding: .9rem .85rem calc(2rem + env(safe-area-inset-bottom)); }
+    .search-count { font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 .2rem .5rem; }
+    .results { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+    .results .lrow { border-radius: 0; animation: rise .3s var(--ease) both; animation-delay: calc(var(--i) * 18ms); }
+    .results .lrow.dotleaf .tile::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .7; }
+    .r-path { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem; font-size: .74rem; color: var(--muted); margin-top: .1rem; }
+    .r-path .sep { color: var(--faint); }
+    .r-note { font-size: .74rem; color: var(--faint); margin-top: .1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    mark { background: color-mix(in srgb, #facc15 45%, transparent); color: inherit; border-radius: 3px; padding: 0 .06em; }
+    .search-view .empty { padding-top: 2.5rem; }
+    .search-view .empty > svg { width: 110px; height: 88px; }
+
     /* ── Toast ──────────────────────────────────────────── */
     .toast {
       position: fixed; z-index: 150; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom));
@@ -374,6 +409,7 @@
         <div class="brand-stats" id="stats"></div>
       </div>
     </div>
+    <button class="hbtn" id="searchBtn" title="Search" aria-label="Search"></button>
     <button class="hbtn" id="trashBtn" title="Trash" aria-label="Trash"></button>
     <button class="hbtn" id="menuBtn" title="Menu" aria-label="Menu"></button>
   </div>
@@ -384,6 +420,17 @@
 </main>
 
 <button class="fab" id="fab" hidden></button>
+
+<div class="search-view" id="searchView" aria-label="Search">
+  <div class="search-bar">
+    <div class="search-in">
+      <label class="search-field"><span id="searchIco"></span>
+        <input type="search" id="searchInput" placeholder="Search everything…" autocomplete="off" enterkeyhint="search"></label>
+      <button class="search-close" id="searchClose">Close</button>
+    </div>
+  </div>
+  <div class="search-body" id="searchResults"></div>
+</div>
 
 <div class="backdrop" id="backdrop">
   <div class="sheet" id="sheet" role="dialog" aria-modal="true">
@@ -464,6 +511,7 @@ const I = {
   undo:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>',
 };
 const EMPTY_ART = `<svg viewBox="0 0 150 120" aria-hidden="true">
   <ellipse cx="75" cy="108" rx="52" ry="7" fill="currentColor" opacity=".08"/>
@@ -496,6 +544,8 @@ const buzz = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
 const byName = (a, b) => (items[a].name || '').localeCompare(items[b].name || '', undefined, { numeric: true, sensitivity: 'base' });
 
 $('trashBtn').innerHTML = I.trash;
+$('searchBtn').innerHTML = I.search;
+$('searchIco').innerHTML = I.search;
 $('menuBtn').innerHTML = I.menu;
 $('fab').innerHTML = `${I.plus}<span>Location</span>`;
 
@@ -635,6 +685,7 @@ function render() {
   }
   saveExpanded();
   firstRender = false;
+  if (searchOpen) runSearch();   // keep results current if someone else edits meanwhile
 
   if (pendingFocus) {
     const el = tree.querySelector(`.node[data-id="${pendingFocus}"]`);
@@ -790,6 +841,7 @@ function closeSheet() {
 window.addEventListener('popstate', () => {
   if (ignorePop) { ignorePop = false; return; }
   if (sheetOpen) { sheetHist = false; closeSheet(); }                        // Back button pressed
+  else if (searchOpen) { searchHist = false; closeSearch(); }
 });
 let scrollTimer = null;
 window.addEventListener('scroll', () => {
@@ -798,7 +850,97 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 function focusSoon(id) { setTimeout(() => $(id)?.focus(), 380); }
 $('backdrop').addEventListener('click', (e) => { if (e.target === $('backdrop')) closeSheet(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetOpen) closeSheet(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (sheetOpen) closeSheet(); else if (searchOpen) closeSearch(); }
+  else if (e.key === '/' && !sheetOpen && !searchOpen && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { e.preventDefault(); openSearch(); }
+});
+
+// ============================================================================
+// Search (client-side, over the whole in-memory tree; trashed items excluded)
+// ============================================================================
+let searchOpen = false, searchHist = false;
+function openSearch() {
+  if (searchOpen) return;
+  searchOpen = true;
+  history.pushState({ search: 1 }, ''); searchHist = true;   // Back closes search, like a sheet
+  $('searchView').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  runSearch();
+  setTimeout(() => $('searchInput').focus(), 60);
+}
+function closeSearch() {
+  searchOpen = false;
+  $('searchView').classList.remove('open');
+  document.body.style.overflow = '';
+  $('searchInput').blur();
+  if (searchHist) { searchHist = false; ignorePop = true; history.back(); }
+}
+$('searchBtn').onclick = openSearch;
+$('searchClose').onclick = closeSearch;
+$('searchInput').addEventListener('input', runSearch);
+$('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });   // hide the phone keyboard
+
+// Every word must appear in the name or note ("blue tote" finds "Tote (blue)").
+function runSearch() {
+  const q = $('searchInput').value.trim();
+  const out = $('searchResults');
+  const live = Object.keys(items).filter(isLive);
+  if (!q) {
+    out.innerHTML = `<div class="empty">${EMPTY_ART}<p>Search ${plural(live.length, 'thing')} by name or note.</p></div>`;
+    return;
+  }
+  const words = q.toLowerCase().split(/\s+/);
+  const hits = [];
+  for (const id of live) {
+    const name = (items[id].name || '').toLowerCase(), note = (items[id].note || '').toLowerCase();
+    if (!words.every(w => name.includes(w) || note.includes(w))) continue;
+    const rank = name.startsWith(words[0]) ? 0 : words.every(w => name.includes(w)) ? 1 : 2;   // name matches first
+    hits.push({ id, rank });
+  }
+  hits.sort((a, b) => a.rank - b.rank || byName(a.id, b.id));
+  if (!hits.length) {
+    out.innerHTML = `<div class="empty">${EMPTY_ART}<p>Nothing matches “${esc(q)}”.</p></div>`;
+    return;
+  }
+  out.innerHTML = `<div class="search-count">${plural(hits.length, 'result')}</div>
+    <div class="results">${hits.map(({ id }, i) => resultHTML(id, words, i)).join('')}</div>`;
+}
+function highlight(text, words) {
+  const s = String(text || ''), lower = s.toLowerCase();
+  const marks = new Array(s.length).fill(false);
+  for (const w of words) { let i = lower.indexOf(w); while (w && i !== -1) { marks.fill(true, i, i + w.length); i = lower.indexOf(w, i + 1); } }
+  let html = '', on = false;
+  for (let i = 0; i < s.length; i++) {
+    if (marks[i] !== on) { html += on ? '</mark>' : '<mark>'; on = marks[i]; }
+    html += esc(s[i]);
+  }
+  return html + (on ? '</mark>' : '');
+}
+function resultHTML(id, words, i) {
+  const it = items[id];
+  const isRoot = !parentOf(id), container = isRoot || (kidsLive.get(id) || []).length > 0;
+  const path = pathIds(id).map(a => esc(items[a].name)).join(' <span class="sep">›</span> ');
+  const noteHit = it.note && words.some(w => it.note.toLowerCase().includes(w));
+  return `<button class="lrow${container ? '' : ' dotleaf'}" data-hit="${id}" style="--accent:${accentOf(id)};--i:${Math.min(i, 20)}">
+    <span class="tile">${isRoot ? I.pin : container ? I.box : ''}</span>
+    <div class="main">
+      <div class="l-name">${highlight(it.name, words)}${(it.qty || 1) > 1 ? `<span class="qty">×${it.qty}</span>` : ''}</div>
+      <div class="r-path">${isRoot ? 'Location' : path}</div>
+      ${noteHit ? `<div class="r-note">${highlight(it.note, words)}</div>` : ''}
+    </div>
+    ${I.chev.replace('<svg', '<svg class="chev" style="width:18px;height:18px"')}
+  </button>`;
+}
+// Tapping a result closes search, opens every container above it, then scrolls to it and flashes it.
+$('searchResults').addEventListener('click', (e) => {
+  const hit = e.target.closest('[data-hit]');
+  if (!hit) return;
+  const id = hit.dataset.hit;
+  closeSearch();
+  expandPath(id);
+  pendingFocus = id;
+  render();
+});
 
 // Drag the handle down to dismiss.
 (() => {
