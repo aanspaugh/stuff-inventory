@@ -40,6 +40,7 @@
       --ease:        cubic-bezier(.32,.72,0,1);
       --spring:      cubic-bezier(.34,1.56,.64,1);
       --tap:         48px;
+      --thumb-zoom:  1.2;   /* tree/search thumbnails crop in 20% so the subject reads at a glance */
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -307,14 +308,25 @@
     .sheet .empty > svg { width: 100px; height: 80px; }
 
     /* ── Photos ─────────────────────────────────────────── */
-    .tile.photo { position: relative; background-size: cover !important; background-position: center !important; box-shadow: inset 0 0 0 1px rgba(15,23,42,.08); cursor: zoom-in; }
+    .tile.photo { position: relative; background: none !important; cursor: zoom-in; }
     .tile.photo::after { display: none; }
+    .pframe { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(15,23,42,.08); }
+    .pimg { position: absolute; inset: 0; background: var(--surface-2) center / cover no-repeat; transform: scale(var(--thumb-zoom)); }
     .pcount {
       position: absolute; right: -6px; bottom: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
       display: grid; place-items: center; background: var(--surface); color: var(--text); font-size: .62rem; font-weight: 800;
       box-shadow: 0 1px 4px rgba(15,23,42,.3);
     }
-    .photos { display: flex; gap: .5rem; overflow-x: auto; padding: .15rem .1rem .45rem; scrollbar-width: none; }
+    .photos { display: flex; gap: .6rem; overflow-x: auto; padding: .35rem .3rem .55rem; scrollbar-width: none; }
+    .ph.cover { box-shadow: 0 0 0 3px var(--primary), 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent); }
+    .cover-tag {
+      position: absolute; left: 5px; bottom: 5px; padding: .08rem .38rem; border-radius: 6px; pointer-events: none;
+      background: var(--primary); color: #fff; font-size: .58rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+    }
+    .ph[data-pid] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; transition: transform .18s var(--spring), opacity .15s, box-shadow .15s; }
+    .ph.lifted { transform: scale(1.12); z-index: 2; box-shadow: 0 14px 30px rgba(15,23,42,.4), 0 0 0 3px var(--primary-2); }
+    .photos.dragging .ph:not(.lifted) { opacity: .7; }
+    .ph-hint { margin-top: 0; margin-bottom: .55rem; font-size: .76rem; }
     .photos:empty { display: none; }
     .photos::-webkit-scrollbar { display: none; }
     .ph {
@@ -364,6 +376,21 @@
     .lb-confirm h3 { font-size: 1.05rem; font-weight: 800; text-align: center; }
     .lb-confirm p { font-size: .88rem; color: var(--muted); text-align: center; margin-top: .3rem; }
     .lb-confirm .actions { margin-top: .9rem; }
+
+    /* ── Usage & stats ──────────────────────────────────── */
+    .usage { padding: .95rem 1rem 1rem; margin-top: .7rem; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-2); }
+    .u-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; font-weight: 700; font-size: .92rem; }
+    .u-pct { font-size: .85rem; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .u-bar { height: 10px; margin: .55rem 0 .45rem; border-radius: 6px; background: var(--border); overflow: hidden; }
+    .u-bar i { display: block; height: 100%; width: 0; min-width: 4px; border-radius: 6px; background: linear-gradient(90deg, #60a5fa, #2563eb); transition: width 1s var(--ease); }
+    .u-bar.warn i { background: linear-gradient(90deg, #fbbf24, #d97706); }
+    .u-bar.hot i  { background: linear-gradient(90deg, #f87171, #dc2626); }
+    .u-sub { font-size: .76rem; color: var(--muted); }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-top: .7rem; }
+    .stat { padding: .75rem .5rem .7rem; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--border); text-align: center; animation: pop .45s var(--spring) both; animation-delay: calc(var(--i) * 40ms); }
+    .stat b { display: block; font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: .7rem; color: var(--muted); font-weight: 600; }
+    .section-h { font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 1.2rem .1rem 0; }
 
     /* ── Search view ────────────────────────────────────── */
     .search-view {
@@ -503,6 +530,7 @@
   <div class="lb-top">
     <button class="lb-btn" id="lbClose" aria-label="Close"></button>
     <div class="lb-title"><div id="lbTitle"></div><div id="lbCount"></div></div>
+    <button class="lb-btn" id="lbCover" aria-label="Make this the cover photo" title="Make cover"></button>
     <button class="lb-btn del" id="lbDel" aria-label="Delete photo"></button>
   </div>
   <div class="lb-track" id="lbTrack"></div>
@@ -552,7 +580,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, onValue, set, update, push } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { getStorage, ref as sRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { getStorage, ref as sRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getMetadata } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 // ============================================================================
 // CONFIG — Firebase project "stuff-inventory-4425d"
@@ -594,6 +622,8 @@ const I = {
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>',
   image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 16-5.5-5.5L5 20"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  star:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
 };
 const EMPTY_ART = `<svg viewBox="0 0 150 120" aria-hidden="true">
   <ellipse cx="75" cy="108" rx="52" ry="7" fill="currentColor" opacity=".08"/>
@@ -786,8 +816,8 @@ function render() {
 function tileHTML(id, fallback, cls = '') {
   const ps = photoList(id);
   if (!ps.length) return `<span class="tile${cls}">${fallback}</span>`;
-  return `<span class="tile photo" data-peek="${id}" style="background-image:${cssUrl(ps[0][1].thumbUrl || ps[0][1].url)}">${
-    ps.length > 1 ? `<span class="pcount">${ps.length}</span>` : ''}</span>`;
+  return `<span class="tile photo" data-peek="${id}"><span class="pframe"><span class="pimg" style="background-image:${
+    cssUrl(ps[0][1].thumbUrl || ps[0][1].url)}"></span></span>${ps.length > 1 ? `<span class="pcount">${ps.length}</span>` : ''}</span>`;
 }
 
 function nodeHTML(id, depth, i = 0) {
@@ -1175,14 +1205,21 @@ function openEditor(id) {
   $('ed-add').onclick = () => { saveIfChanged(); openAdd(id); };
   $('ed-del').onclick = () => { saveIfChanged(); openDeleteConfirm(id); };
   editorId = id;
-  $('ed-photos').onclick = (e) => { const ph = e.target.closest('[data-pid]'); if (ph) openLightbox(id, ph.dataset.pid); };
+  $('ed-photos').onclick = (e) => {
+    const ph = e.target.closest('[data-pid]');
+    if (ph && performance.now() > noClickUntil) openLightbox(id, ph.dataset.pid);
+  };
+  wireStripDrag(id);
+  refreshStrip(id);
   wirePhotoInputs('ed', (files) => uploadPhotos(id, files));
 }
 
 // ============================================================================
 // Photos: pick or shoot → shrink on the phone → upload to Storage → record in RTDB
 // ============================================================================
-const photoList = (id) => Object.entries(items[id]?.photos || {}).sort((a, b) => (a[1].addedAt || 0) - (b[1].addedAt || 0));
+// Display order: the user's drag order (`order`), else upload time. The first photo is the cover.
+const photoKey = (p) => p.order ?? p.addedAt ?? 0;
+const photoList = (id) => Object.entries(items[id]?.photos || {}).sort((a, b) => photoKey(a[1]) - photoKey(b[1]));
 const cssUrl = (u) => `url(&quot;${String(u || '').replace(/["\\\n]/g, '')}&quot;)`;
 const rmFile = (path) => deleteObject(sRef(_st, path)).catch(e => { if (e?.code !== 'storage/object-not-found') throw e; });
 const uploads = new Map();   // itemId -> in-flight uploads [{ key, preview, pct }]
@@ -1191,6 +1228,7 @@ const uploads = new Map();   // itemId -> in-flight uploads [{ key, preview, pct
 function photoFieldHTML(prefix, strip = '') {
   return `<div class="field"><label>Photos</label>
     <div class="photos" id="${prefix}-photos">${strip}</div>
+    <p class="hint ph-hint" id="${prefix}-ph-hint" hidden>Press and hold a photo, then drag to reorder. The first one is the cover.</p>
     <div class="photo-btns">
       <button type="button" class="btn btn-ghost" id="${prefix}-cam-btn">${I.camera}Take photo</button>
       <button type="button" class="btn btn-ghost" id="${prefix}-pick-btn">${I.image}Choose photos</button>
@@ -1211,13 +1249,75 @@ function wirePhotoInputs(prefix, onFiles) {
   }
 }
 function stripHTML(id) {
-  const saved = photoList(id).map(([pid, p]) =>
-    `<button type="button" class="ph" data-pid="${pid}" style="background-image:${cssUrl(p.thumbUrl || p.url)}" aria-label="Open photo"></button>`);
+  const saved = photoList(id).map(([pid, p], i) =>
+    `<button type="button" class="ph${i === 0 ? ' cover' : ''}" data-pid="${pid}" style="background-image:${cssUrl(p.thumbUrl || p.url)}" aria-label="Open photo">${
+      i === 0 ? '<span class="cover-tag">Cover</span>' : ''}</button>`);
   const busy = (uploads.get(id) || []).map(u =>
     `<span class="ph pending" style="background-image:${cssUrl(u.preview)}"><span class="pct">${u.pct ? `${u.pct}%` : '<span class="spinner"></span>'}</span><span class="bar" style="width:${u.pct}%"></span></span>`);
   return saved.concat(busy).join('');
 }
-function refreshStrip(id) { if (sheetOpen && editorId === id && $('ed-photos')) $('ed-photos').innerHTML = stripHTML(id); }
+function refreshStrip(id) {
+  const strip = $('ed-photos');
+  if (!sheetOpen || editorId !== id || !strip || strip.classList.contains('dragging')) return;   // never yank a photo mid-drag
+  strip.innerHTML = stripHTML(id);
+  $('ed-ph-hint').hidden = photoList(id).length < 2;
+  strip.querySelectorAll('.ph[data-pid]').forEach(el => el.style.cursor = 'grab');
+}
+
+// Reorder by press-and-hold then drag. A quick swipe still scrolls the strip; only a
+// held finger (~0.3s without moving) picks the photo up.
+let noClickUntil = 0;
+function wireStripDrag(id) {
+  const strip = $('ed-photos');
+  let timer = null, drag = null, x0 = 0, y0 = 0;
+  const onMove = (e) => {
+    if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; }
+    if (!drag) return;
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ph[data-pid]');
+    if (over && over !== drag && over.parentElement === strip) {
+      const r = over.getBoundingClientRect();
+      const before = e.clientX < r.left + r.width / 2 ? over : over.nextSibling;
+      if (before !== drag && before !== drag.nextSibling) { strip.insertBefore(drag, before); buzz(6); markCover(); }
+    }
+  };
+  const markCover = () => strip.querySelectorAll('.ph[data-pid]').forEach((el, i) => {
+    el.classList.toggle('cover', i === 0);
+    el.querySelector('.cover-tag')?.remove();
+    if (i === 0) el.insertAdjacentHTML('beforeend', '<span class="cover-tag">Cover</span>');
+  });
+  const onUp = () => {
+    clearTimeout(timer); timer = null;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    if (!drag) return;
+    drag.classList.remove('lifted'); strip.classList.remove('dragging');
+    drag = null; noClickUntil = performance.now() + 400;   // the release isn't a "tap to open"
+    saveOrder(id, [...strip.querySelectorAll('.ph[data-pid]')].map(el => el.dataset.pid));
+  };
+  strip.addEventListener('pointerdown', (e) => {
+    const ph = e.target.closest('.ph[data-pid]');
+    if (!ph || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    x0 = e.clientX; y0 = e.clientY;
+    timer = setTimeout(() => { timer = null; drag = ph; ph.classList.add('lifted'); strip.classList.add('dragging'); buzz(18); }, 300);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  });
+  strip.addEventListener('touchmove', (e) => { if (drag) e.preventDefault(); }, { passive: false });   // hold = drag, not scroll
+  strip.addEventListener('contextmenu', (e) => e.preventDefault());
+  strip.addEventListener('dragstart', (e) => e.preventDefault());
+}
+async function saveOrder(id, pids) {
+  const before = photoList(id).map(([k]) => k);
+  if (pids.join() === before.join()) return;
+  const upd = {};
+  pids.forEach((pid, i) => { upd[`${pid}/order`] = i; });
+  try {
+    await update(ref(_db, `items/${id}/photos`), upd);
+    if (pids[0] !== before[0]) showToast('Cover photo updated');
+  } catch (err) { fail(err); }
+}
 
 async function decodeImage(file) {
   try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }   // respects phone rotation
@@ -1271,7 +1371,8 @@ async function uploadOne(itemId, job) {
   await uploadBytes(sRef(_st, thumbPath), thumb.blob, meta);
   const [url, thumbUrl] = await Promise.all([getDownloadURL(sRef(_st, path)), getDownloadURL(sRef(_st, thumbPath))]);
   await set(ref(_db, `items/${itemId}/photos/${pid}`), {
-    path, url, thumbPath, thumbUrl, w: full.w, h: full.h, size: full.blob.size, addedBy: me.email, addedAt: now(),
+    path, url, thumbPath, thumbUrl, w: full.w, h: full.h, size: full.blob.size, thumbSize: thumb.blob.size,
+    addedBy: me.email, addedAt: now(),
   });
 }
 async function deletePhoto(itemId, pid) {
@@ -1316,8 +1417,26 @@ function closeLightbox() {
   if (lbHist) { lbHist = false; ignorePop = true; history.back(); }
 }
 const lbIndex = () => Math.round($('lbTrack').scrollLeft / ($('lbTrack').clientWidth || 1));
-function lbCounter() { $('lbCount').textContent = lbIds.length > 1 ? `${lbIndex() + 1} of ${lbIds.length}` : ''; }
-function lbGo(d) { const t = $('lbTrack'); t.scrollTo({ left: (lbIndex() + d) * t.clientWidth, behavior: 'smooth' }); }
+function lbCounter() {
+  const i = lbIndex();
+  $('lbCount').textContent = lbIds.length > 1 ? `${i + 1} of ${lbIds.length}${i === 0 ? ' · Cover' : ''}` : '';
+  $('lbCover').style.visibility = lbIds.length > 1 && i > 0 ? 'visible' : 'hidden';
+}
+$('lbCover').innerHTML = I.star;
+$('lbCover').onclick = async () => {
+  const pid = lbIds[lbIndex()];
+  buzz(12);
+  await saveOrder(lbItem, [pid, ...lbIds.filter(k => k !== pid)]);
+  renderLightbox(pid);
+};
+let lbTarget = null, lbTargetTimer = null;   // so rapid arrow presses add up instead of repeating the same step
+function lbGo(d) {
+  const t = $('lbTrack');
+  lbTarget = Math.max(0, Math.min(lbIds.length - 1, (lbTarget ?? lbIndex()) + d));
+  t.scrollTo({ left: lbTarget * t.clientWidth, behavior: 'smooth' });
+  clearTimeout(lbTargetTimer);
+  lbTargetTimer = setTimeout(() => { lbTarget = null; }, 600);
+}
 function lbConfirm(show) { $('lbConfirm').classList.toggle('show', show); }
 $('lbTrack').addEventListener('scroll', lbCounter, { passive: true });
 $('lbClose').onclick = closeLightbox;
@@ -1448,16 +1567,92 @@ $('menuBtn').onclick = () => {
   openSheet(`
     <h2>Menu</h2>
     <p class="hint">Signed in as <strong>${esc(me?.email)}</strong></p>
+    <div class="actions"><button class="btn btn-soft" id="mn-stats">${I.chart}Usage &amp; stats</button></div>
     <div class="tools">
       <button class="btn btn-ghost" id="mn-exp">Expand all</button>
       <button class="btn btn-ghost" id="mn-col">Collapse all</button>
     </div>
     <div class="actions"><button class="btn btn-ghost" id="mn-out">Sign out</button><button class="btn btn-primary" id="mn-close">Close</button></div>`);
+  $('mn-stats').onclick = openStats;
   $('mn-exp').onclick = () => { for (const [p, ks] of kidsLive) { if (p === null) ks.forEach(k => expanded.add(k)); else expanded.add(p); } closeSheet(); render(); };
   $('mn-col').onclick = () => { expanded.clear(); closeSheet(); render(); };
   $('mn-close').onclick = closeSheet;
   $('mn-out').onclick = () => signOut(_auth).then(() => location.reload());
 };
+
+// ── Usage & stats ───────────────────────────────────────────────────────────
+// Free allowances on the Blaze plan for our US-region bucket and database
+// (firebase.google.com/pricing, checked 2026-09-22). Decimal GB, the stricter reading.
+const FREE = { storage: 5e9, uploadsPerMonth: 5000, db: 1e9 };
+const fmtBytes = (b) => b < 1e6 ? `${Math.max(0, Math.round(b / 1e3))} KB` : b < 1e9 ? `${(b / 1e6).toFixed(1)} MB` : `${(b / 1e9).toFixed(2)} GB`;
+const fmtPct = (x) => x === 0 ? '0%' : x < 0.1 ? '<0.1%' : `${x < 10 ? x.toFixed(1) : Math.round(x)}%`;
+const fmtNum = (n) => n.toLocaleString();
+
+async function openStats() {
+  openSheet(`<h2>Usage &amp; stats</h2><div style="display:grid;place-items:center;padding:2.5rem"><div class="spinner" style="border-color:var(--border);border-top-color:var(--primary)"></div></div>`);
+  // Thumbnail sizes weren't recorded before this page existed; fill them in once from Storage.
+  const missing = [];
+  for (const id of Object.keys(items)) for (const [pid, p] of photoList(id)) if (p.thumbPath && p.thumbSize == null) missing.push([id, pid, p]);
+  await Promise.all(missing.map(([id, pid, p]) => getMetadata(sRef(_st, p.thumbPath))
+    .then(m => update(ref(_db, `items/${id}/photos/${pid}`), { thumbSize: m.size }))
+    .catch(e => console.warn('thumb size', e))));
+  if (!sheetOpen) return;
+
+  const all = Object.keys(items), live = all.filter(isLive);
+  const locations = live.filter(id => !parentOf(id)).length;
+  const containers = live.filter(id => parentOf(id) && (kidsLive.get(id) || []).length).length;
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  let photos = 0, bytes = 0, trashPhotos = 0, trashBytes = 0, withPhotos = 0, monthPhotos = 0;
+  for (const id of all) {
+    const ps = photoList(id);
+    if (ps.length && isLive(id)) withPhotos++;
+    for (const [, p] of ps) {
+      const b = (p.size || 0) + (p.thumbSize || 0);
+      photos++; bytes += b;
+      if (!isLive(id)) { trashPhotos++; trashBytes += b; }
+      if ((p.addedAt || 0) >= +monthStart) monthPhotos++;
+    }
+  }
+  const depth = live.reduce((m, id) => Math.max(m, ancestors(id).length + 1), 0);
+  const dbBytes = new Blob([JSON.stringify(items)]).size;
+  const avg = photos ? bytes / photos : 250e3;              // before any photos: a typical shrunk phone photo
+  const roomFor = Math.max(0, Math.floor((FREE.storage - bytes) / avg));
+  const uploadOps = monthPhotos * 2;                          // each photo = full image + thumbnail
+  const who = {};
+  for (const id of live) { const w = whoLabel(items[id].addedBy); who[w] = (who[w] || 0) + 1; }
+  const last = all.reduce((a, id) => (items[id].updatedAt || 0) > (items[a]?.updatedAt || 0) ? id : a, null);
+  const month = new Date().toLocaleDateString(undefined, { month: 'long' });
+
+  const bar = (title, used, cap, sub) => {
+    const pct = cap ? used / cap * 100 : 0;
+    return `<div class="usage">
+      <div class="u-head"><span>${title}</span><span class="u-pct">${fmtPct(pct)} used</span></div>
+      <div class="u-bar${pct >= 90 ? ' hot' : pct >= 75 ? ' warn' : ''}"><i data-w="${Math.min(100, pct)}"></i></div>
+      <div class="u-sub">${sub}</div></div>`;
+  };
+  const stat = (n, label, i) => `<div class="stat" style="--i:${i}"><b>${fmtNum(n)}</b><span>${label}</span></div>`;
+  openSheet(`
+    <h2>Usage &amp; stats</h2>
+    <p class="hint">Measured against Firebase's free allowances. Staying under them keeps this at $0.</p>
+    ${bar('Photo storage', bytes, FREE.storage,
+      `${fmtBytes(bytes)} of 5 GB free${trashPhotos ? ` (incl. ${fmtBytes(trashBytes)} in Trash)` : ''} · room for about <strong>${fmtNum(roomFor)}</strong> more photos at ${photos ? 'your' : 'a typical'} average of ${fmtBytes(avg)}`)}
+    ${bar(`Photo uploads in ${month}`, uploadOps, FREE.uploadsPerMonth,
+      `${fmtNum(monthPhotos)} ${monthPhotos === 1 ? 'photo' : 'photos'} this month (2 uploads each: photo + thumbnail) of 5,000 free uploads a month. Resets on the 1st.`)}
+    ${bar('Database', dbBytes, FREE.db, `${fmtBytes(dbBytes)} of 1 GB free · names, notes and locations (photos are stored separately)`)}
+    <div class="section-h">Inventory</div>
+    <div class="stat-grid">
+      ${stat(locations, 'Locations', 0)}${stat(containers, 'Containers', 1)}${stat(live.length - locations, 'Things', 2)}
+      ${stat(photos - trashPhotos, 'Photos', 3)}${stat(withPhotos, 'With photos', 4)}${stat(trashRoots().length, 'In Trash', 5)}
+    </div>
+    <p class="hint">Deepest nesting: <strong>${plural(depth, 'level')}</strong>${Object.keys(who).length ? ` · Added by ${Object.entries(who).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${esc(w)} ${fmtNum(n)}`).join(', ')}` : ''}${
+      last ? ` · Last change: ${esc(whoLabel(items[last].updatedBy))}, ${ago(items[last].updatedAt)}` : ''}</p>
+    <p class="hint" style="color:var(--faint)">Not shown: how often photos are viewed (Firebase allows 100 GB of viewing a month). The app can't measure it; the $1 budget alert covers it.</p>
+    <div class="actions"><button class="btn btn-ghost" id="st-back">Back</button><button class="btn btn-primary" id="st-close">Close</button></div>`);
+  $('st-back').onclick = () => $('menuBtn').onclick();
+  $('st-close').onclick = closeSheet;
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    $('sheetBody').querySelectorAll('.u-bar i').forEach(el => { el.style.width = `${el.dataset.w}%`; })));
+}
 
 // ============================================================================
 // Toast (with Undo)
