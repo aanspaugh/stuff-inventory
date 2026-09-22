@@ -306,6 +306,65 @@
     .sheet .empty { padding: 2rem 1rem 1rem; }
     .sheet .empty > svg { width: 100px; height: 80px; }
 
+    /* ── Photos ─────────────────────────────────────────── */
+    .tile.photo { position: relative; background-size: cover !important; background-position: center !important; box-shadow: inset 0 0 0 1px rgba(15,23,42,.08); cursor: zoom-in; }
+    .tile.photo::after { display: none; }
+    .pcount {
+      position: absolute; right: -6px; bottom: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
+      display: grid; place-items: center; background: var(--surface); color: var(--text); font-size: .62rem; font-weight: 800;
+      box-shadow: 0 1px 4px rgba(15,23,42,.3);
+    }
+    .photos { display: flex; gap: .5rem; overflow-x: auto; padding: .15rem .1rem .45rem; scrollbar-width: none; }
+    .photos:empty { display: none; }
+    .photos::-webkit-scrollbar { display: none; }
+    .ph {
+      position: relative; flex: 0 0 78px; height: 78px; border: none; border-radius: 14px; overflow: hidden;
+      background: var(--surface-2) center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--border);
+      animation: pop .35s var(--spring); cursor: zoom-in;
+    }
+    .ph .x {
+      position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border: none; border-radius: 50%;
+      display: grid; place-items: center; background: rgba(15,23,42,.72); color: #fff; cursor: pointer;
+    }
+    .ph .x svg { width: 13px; height: 13px; }
+    .ph.pending { cursor: default; }
+    .ph.pending::before { content: ''; position: absolute; inset: 0; background: rgba(15,23,42,.5); }
+    .ph .pct { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: .78rem; font-weight: 800; }
+    .ph .bar { position: absolute; left: 0; bottom: 0; height: 4px; background: #60a5fa; transition: width .2s; }
+    .photo-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+    .photo-btns .btn { min-height: 46px; font-size: .88rem; padding: .5rem .4rem; white-space: nowrap; }
+    .ph .spinner { width: 22px; height: 22px; border-width: 2.5px; }
+
+    .lightbox {
+      position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; background: #020617; color: #e2e8f0;
+      opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s .25s;
+    }
+    .lightbox.open { opacity: 1; visibility: visible; transition: opacity .25s; }
+    .lb-top { display: flex; align-items: center; gap: .6rem; padding: calc(.6rem + env(safe-area-inset-top)) .75rem .5rem; }
+    .lb-title { flex: 1; min-width: 0; text-align: center; }
+    .lb-title #lbTitle { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-title #lbCount { font-size: .74rem; color: #94a3b8; margin-top: .05rem; }
+    .lb-btn {
+      flex-shrink: 0; width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; border: none;
+      background: rgba(255,255,255,.08); color: #e2e8f0; transition: background .15s, transform .15s var(--spring);
+    }
+    .lb-btn:active { transform: scale(.9); background: rgba(255,255,255,.18); }
+    .lb-btn svg { width: 21px; height: 21px; }
+    .lb-btn.del { color: #fca5a5; }
+    .lb-track { flex: 1; min-height: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior: contain; }
+    .lb-track::-webkit-scrollbar { display: none; }
+    .lb-slide { flex: 0 0 100%; display: grid; place-items: center; padding: .4rem .6rem calc(1rem + env(safe-area-inset-bottom)); scroll-snap-align: center; }
+    .lb-slide img { max-width: 100%; max-height: calc(100vh - 150px); object-fit: contain; border-radius: 8px; user-select: none; -webkit-user-drag: none; animation: rise .35s var(--ease); }
+    .lb-confirm {
+      position: absolute; left: .8rem; right: .8rem; bottom: calc(.9rem + env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto;
+      padding: 1.1rem 1rem 1rem; border-radius: 22px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
+      transform: translateY(140%); transition: transform .38s var(--ease);
+    }
+    .lb-confirm.show { transform: none; }
+    .lb-confirm h3 { font-size: 1.05rem; font-weight: 800; text-align: center; }
+    .lb-confirm p { font-size: .88rem; color: var(--muted); text-align: center; margin-top: .3rem; }
+    .lb-confirm .actions { margin-top: .9rem; }
+
     /* ── Search view ────────────────────────────────────── */
     .search-view {
       position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
@@ -352,8 +411,9 @@
     @media (prefers-color-scheme: dark) { .toast { background: #1e293b; border: 1px solid #334155; } }
     .toast.show { transform: translate(-50%, 0); }
     /* While a sheet is open, toasts drop in from the top so they never cover sheet buttons */
-    body.sheet-open .toast { bottom: auto; top: calc(.8rem + env(safe-area-inset-top)); transform: translate(-50%, -160%); }
-    body.sheet-open .toast.show { transform: translate(-50%, 0); }
+    body.sheet-open .toast, body.lb-open .toast { bottom: auto; top: calc(.8rem + env(safe-area-inset-top)); transform: translate(-50%, -160%); }
+    body.sheet-open .toast.show, body.lb-open .toast.show { transform: translate(-50%, 0); }
+    body.lb-open .toast { top: calc(4.2rem + env(safe-area-inset-top)); }
     .toast .t-msg { flex: 1; min-width: 0; }
     .toast .t-undo { border: none; background: rgba(96,165,250,.16); color: #93c5fd; font-weight: 700; font-size: .88rem; padding: .5rem .85rem; border-radius: 10px; }
     .toast .t-undo:active { background: rgba(96,165,250,.3); }
@@ -439,6 +499,23 @@
   </div>
 </div>
 
+<div class="lightbox" id="lightbox" aria-label="Photos">
+  <div class="lb-top">
+    <button class="lb-btn" id="lbClose" aria-label="Close"></button>
+    <div class="lb-title"><div id="lbTitle"></div><div id="lbCount"></div></div>
+    <button class="lb-btn del" id="lbDel" aria-label="Delete photo"></button>
+  </div>
+  <div class="lb-track" id="lbTrack"></div>
+  <div class="lb-confirm" id="lbConfirm">
+    <h3>Delete this photo?</h3>
+    <p>Photos don't go to Trash, so this can't be undone.</p>
+    <div class="actions">
+      <button class="btn btn-ghost" id="lbKeep">Keep it</button>
+      <button class="btn btn-danger" id="lbYes">Delete photo</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite">
   <span class="t-msg" id="toastMsg"></span>
   <button class="t-undo" id="toastUndo">Undo</button>
@@ -475,6 +552,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, onValue, set, update, push } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getStorage, ref as sRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 // ============================================================================
 // CONFIG — Firebase project "stuff-inventory-4425d"
@@ -497,6 +575,7 @@ const ALLOWED = {
 const _app  = initializeApp(_firebaseConfig);
 const _auth = getAuth(_app);
 const _db   = getDatabase(_app);
+const _st   = getStorage(_app);
 
 // ── Icons ───────────────────────────────────────────────────────────────────
 const I = {
@@ -512,6 +591,9 @@ const I = {
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 16-5.5-5.5L5 20"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 };
 const EMPTY_ART = `<svg viewBox="0 0 150 120" aria-hidden="true">
   <ellipse cx="75" cy="108" rx="52" ry="7" fill="currentColor" opacity=".08"/>
@@ -686,6 +768,8 @@ function render() {
   saveExpanded();
   firstRender = false;
   if (searchOpen) runSearch();   // keep results current if someone else edits meanwhile
+  if (editorId) refreshStrip(editorId);
+  if (lbOpen && photoList(lbItem).length !== lbIds.length) { const i = lbIndex(); renderLightbox(lbIds[i], i); }
 
   if (pendingFocus) {
     const el = tree.querySelector(`.node[data-id="${pendingFocus}"]`);
@@ -695,6 +779,15 @@ function render() {
       setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
     }
   }
+}
+
+// An item's tile: its first photo's thumbnail (tap = open photos, corner count if >1),
+// otherwise the given icon/letter.
+function tileHTML(id, fallback, cls = '') {
+  const ps = photoList(id);
+  if (!ps.length) return `<span class="tile${cls}">${fallback}</span>`;
+  return `<span class="tile photo" data-peek="${id}" style="background-image:${cssUrl(ps[0][1].thumbUrl || ps[0][1].url)}">${
+    ps.length > 1 ? `<span class="pcount">${ps.length}</span>` : ''}</span>`;
 }
 
 function nodeHTML(id, depth, i = 0) {
@@ -713,7 +806,7 @@ function nodeHTML(id, depth, i = 0) {
   return `<div class="node${isRoot ? ' root' : ''}${open ? ' open' : ''}" data-id="${id}"${style}>
     <div class="row" data-row="${id}" data-container="${container ? 1 : 0}">
       <span class="chev${container ? '' : ' none'}">${I.chev}</span>
-      <span class="tile${!isRoot && !container ? ' dot' : ''}">${tile}</span>
+      ${tileHTML(id, tile, !isRoot && !container ? ' dot' : '')}
       <div class="main">
         <div class="name">${esc(it.name)}${(it.qty || 1) > 1 ? `<span class="qty">×${it.qty}</span>` : ''}</div>
         ${subParts.length ? `<div class="sub">${subParts.join(' · ')}</div>` : ''}
@@ -731,6 +824,8 @@ function nodeHTML(id, depth, i = 0) {
 $('tree').addEventListener('click', (e) => {
   const t = e.target;
   if (t.closest('[data-new-location]')) return openAdd(null);
+  const peek = t.closest('[data-peek]');
+  if (peek) return openLightbox(peek.dataset.peek);
   const add = t.closest('[data-add]');
   if (add) return openAdd(add.dataset.add);
   const edit = t.closest('[data-edit]');
@@ -799,14 +894,17 @@ function restoreItem(id, quiet) {
 }
 // Permanent delete: the DB rule only allows removing an item already flagged deleted,
 // so flag the whole subtree first, then remove it in one multi-path write.
+// Photo files go first, so a failure never leaves unreachable files behind in Storage.
 async function purgeItem(id) {
   const ids = [id, ...descendants(id, kidsAll)];
-  const flag = {}, kill = {};
+  const flag = {}, kill = {}, files = [];
   for (const d of ids) {
     if (!items[d].deleted) { flag[`${d}/deleted`] = true; flag[`${d}/deletedAt`] = now(); }
     kill[d] = null;
+    for (const [, p] of photoList(d)) files.push(p.path, p.thumbPath);
   }
   try {
+    await Promise.all(files.filter(Boolean).map(rmFile));
     if (Object.keys(flag).length) await update(ref(_db, 'items'), flag);
     await update(ref(_db, 'items'), kill);
     return true;
@@ -819,7 +917,9 @@ async function purgeItem(id) {
 // An open sheet owns one browser-history entry, so the phone's Back button closes the
 // sheet instead of leaving the app.
 let sheetOpen = false, sheetHist = false, ignorePop = false;
+let editorId = null;   // item whose editor is showing, so its photo strip can refresh live
 function openSheet(html, after) {
+  editorId = null;
   const body = $('sheetBody');
   body.innerHTML = html;
   if (sheetOpen) { body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap'); }
@@ -834,13 +934,14 @@ function openSheet(html, after) {
 function closeSheet() {
   $('backdrop').classList.remove('open');
   document.body.classList.remove('sheet-open');
-  sheetOpen = false;
+  sheetOpen = false; editorId = null;
   document.activeElement?.blur?.();
   if (sheetHist) { sheetHist = false; ignorePop = true; history.back(); }   // drop the sheet's history entry
 }
 window.addEventListener('popstate', () => {
   if (ignorePop) { ignorePop = false; return; }
-  if (sheetOpen) { sheetHist = false; closeSheet(); }                        // Back button pressed
+  if (lbOpen) { lbHist = false; closeLightbox(); }                          // Back button pressed:
+  else if (sheetOpen) { sheetHist = false; closeSheet(); }                   // close the topmost layer
   else if (searchOpen) { searchHist = false; closeSearch(); }
 });
 let scrollTimer = null;
@@ -851,6 +952,11 @@ window.addEventListener('scroll', () => {
 function focusSoon(id) { setTimeout(() => $(id)?.focus(), 380); }
 $('backdrop').addEventListener('click', (e) => { if (e.target === $('backdrop')) closeSheet(); });
 document.addEventListener('keydown', (e) => {
+  if (lbOpen) {
+    if (e.key === 'Escape') { $('lbConfirm').classList.contains('show') ? lbConfirm(false) : closeLightbox(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') lbGo(e.key === 'ArrowRight' ? 1 : -1);
+    return;
+  }
   if (e.key === 'Escape') { if (sheetOpen) closeSheet(); else if (searchOpen) closeSearch(); }
   else if (e.key === '/' && !sheetOpen && !searchOpen && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { e.preventDefault(); openSearch(); }
 });
@@ -922,7 +1028,7 @@ function resultHTML(id, words, i) {
   const path = pathIds(id).map(a => esc(items[a].name)).join(' <span class="sep">›</span> ');
   const noteHit = it.note && words.some(w => it.note.toLowerCase().includes(w));
   return `<button class="lrow${container ? '' : ' dotleaf'}" data-hit="${id}" style="--accent:${accentOf(id)};--i:${Math.min(i, 20)}">
-    <span class="tile">${isRoot ? I.pin : container ? I.box : ''}</span>
+    ${tileHTML(id, isRoot ? I.pin : container ? I.box : '')}
     <div class="main">
       <div class="l-name">${highlight(it.name, words)}${(it.qty || 1) > 1 ? `<span class="qty">×${it.qty}</span>` : ''}</div>
       <div class="r-path">${isRoot ? 'Location' : path}</div>
@@ -981,6 +1087,7 @@ function crumbHTML(parentId, label = 'In') {
 function openAdd(parentId) {
   const isLoc = !parentId;
   const added = [];
+  let staged = [];   // photos picked before the item exists: [{ file, preview }]
   openSheet(`
     <h2>${isLoc ? 'New location' : `Add to ${esc(items[parentId].name)}`}</h2>
     ${crumbHTML(parentId)}
@@ -989,6 +1096,7 @@ function openAdd(parentId) {
     <div class="field"><label>Quantity</label>${stepperHTML('ad-qty', 1)}</div>
     <div class="field"><label for="ad-note">Note</label>
       <textarea class="input" id="ad-note" placeholder="Optional: color, condition, which shelf…"></textarea></div>
+    ${photoFieldHTML('ad')}
     <div class="actions">
       <button class="btn btn-soft" id="ad-more">${I.plus}Add &amp; next</button>
       <button class="btn btn-primary" id="ad-done">${I.check}Add</button>
@@ -998,15 +1106,32 @@ function openAdd(parentId) {
   const submit = (keepGoing) => {
     const name = $('ad-name').value.trim();
     if (!name) { if (!keepGoing && added.length) closeSheet(); else $('ad-name').focus(); return; }
-    addItem(parentId, name, qtyVal('ad-qty'), $('ad-note').value.trim());
+    const newId = addItem(parentId, name, qtyVal('ad-qty'), $('ad-note').value.trim());
+    if (staged.length) uploadPhotos(newId, staged.map(s => s.file));   // continues in the background
+    staged.forEach(s => URL.revokeObjectURL(s.preview)); staged = [];
     buzz(10);
     if (keepGoing) {
       added.push(name);
       $('ad-list').insertAdjacentHTML('beforeend', `<span class="added-chip">${I.check.replace('<svg', '<svg width="13" height="13"')}${esc(name)}</span>`);
       $('ad-name').value = ''; $('ad-note').value = ''; $('ad-qty').value = 1;
+      renderStaged();
       $('ad-name').focus();
     } else closeSheet();
   };
+  const renderStaged = () => {
+    $('ad-photos').innerHTML = staged.map((s, i) =>
+      `<span class="ph" style="background-image:${cssUrl(s.preview)}"><button class="x" data-unstage="${i}" aria-label="Remove photo">${I.close}</button></span>`).join('');
+  };
+  $('ad-photos').onclick = (e) => {
+    const x = e.target.closest('[data-unstage]');
+    if (!x) return;
+    const [s] = staged.splice(Number(x.dataset.unstage), 1);
+    URL.revokeObjectURL(s.preview); renderStaged();
+  };
+  wirePhotoInputs('ad', (files) => {
+    staged.push(...files.map(file => ({ file, preview: URL.createObjectURL(file) })));
+    renderStaged();
+  });
   $('ad-more').onclick = () => submit(true);
   $('ad-done').onclick = () => submit(false);
   $('ad-name').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(true); } };
@@ -1027,6 +1152,7 @@ function openEditor(id) {
     <div class="field"><label for="ed-name">Name</label><input class="input" id="ed-name" autocomplete="off" value="${esc(it.name)}"></div>
     <div class="field"><label>Quantity</label>${stepperHTML('ed-qty', it.qty || 1)}</div>
     <div class="field"><label for="ed-note">Note</label><textarea class="input" id="ed-note" placeholder="Optional">${esc(it.note)}</textarea></div>
+    ${photoFieldHTML('ed', stripHTML(id))}
     <div class="tools">
       <button class="btn btn-ghost" id="ed-move">${I.move}Move to…</button>
       <button class="btn btn-ghost" id="ed-add">${I.plus}Put inside</button>
@@ -1048,7 +1174,161 @@ function openEditor(id) {
   $('ed-move').onclick = () => { saveIfChanged(); openMove(id); };
   $('ed-add').onclick = () => { saveIfChanged(); openAdd(id); };
   $('ed-del').onclick = () => { saveIfChanged(); openDeleteConfirm(id); };
+  editorId = id;
+  $('ed-photos').onclick = (e) => { const ph = e.target.closest('[data-pid]'); if (ph) openLightbox(id, ph.dataset.pid); };
+  wirePhotoInputs('ed', (files) => uploadPhotos(id, files));
 }
+
+// ============================================================================
+// Photos: pick or shoot → shrink on the phone → upload to Storage → record in RTDB
+// ============================================================================
+const photoList = (id) => Object.entries(items[id]?.photos || {}).sort((a, b) => (a[1].addedAt || 0) - (b[1].addedAt || 0));
+const cssUrl = (u) => `url(&quot;${String(u || '').replace(/["\\\n]/g, '')}&quot;)`;
+const rmFile = (path) => deleteObject(sRef(_st, path)).catch(e => { if (e?.code !== 'storage/object-not-found') throw e; });
+const uploads = new Map();   // itemId -> in-flight uploads [{ key, preview, pct }]
+
+// Two ways in, like most apps: open the camera straight away, or choose existing photos.
+function photoFieldHTML(prefix, strip = '') {
+  return `<div class="field"><label>Photos</label>
+    <div class="photos" id="${prefix}-photos">${strip}</div>
+    <div class="photo-btns">
+      <button type="button" class="btn btn-ghost" id="${prefix}-cam-btn">${I.camera}Take photo</button>
+      <button type="button" class="btn btn-ghost" id="${prefix}-pick-btn">${I.image}Choose photos</button>
+    </div>
+    <input type="file" id="${prefix}-cam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="${prefix}-pick" accept="image/*" multiple hidden>
+  </div>`;
+}
+function wirePhotoInputs(prefix, onFiles) {
+  for (const kind of ['cam', 'pick']) {
+    const input = $(`${prefix}-${kind}`);
+    $(`${prefix}-${kind}-btn`).onclick = () => input.click();
+    input.onchange = () => {
+      const files = [...input.files].filter(f => f.type.startsWith('image/') || !f.type);
+      input.value = '';
+      if (files.length) { buzz(8); onFiles(files); }
+    };
+  }
+}
+function stripHTML(id) {
+  const saved = photoList(id).map(([pid, p]) =>
+    `<button type="button" class="ph" data-pid="${pid}" style="background-image:${cssUrl(p.thumbUrl || p.url)}" aria-label="Open photo"></button>`);
+  const busy = (uploads.get(id) || []).map(u =>
+    `<span class="ph pending" style="background-image:${cssUrl(u.preview)}"><span class="pct">${u.pct ? `${u.pct}%` : '<span class="spinner"></span>'}</span><span class="bar" style="width:${u.pct}%"></span></span>`);
+  return saved.concat(busy).join('');
+}
+function refreshStrip(id) { if (sheetOpen && editorId === id && $('ed-photos')) $('ed-photos').innerHTML = stripHTML(id); }
+
+async function decodeImage(file) {
+  try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }   // respects phone rotation
+  catch {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.src = url; await img.decode(); URL.revokeObjectURL(url);
+    return img;
+  }
+}
+// Longer edge ≤ maxEdge, JPEG at the given quality (plan: 1600px @ 0.7 → typically 200–400 KB).
+async function toJpeg(src, maxEdge, quality) {
+  const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
+  const s = Math.min(1, maxEdge / Math.max(W, H));
+  const c = document.createElement('canvas');
+  c.width = Math.round(W * s); c.height = Math.round(H * s);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  const blob = await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('encode failed')), 'image/jpeg', quality));
+  return { blob, w: c.width, h: c.height };
+}
+
+async function uploadPhotos(itemId, files) {
+  const list = uploads.get(itemId) || [];
+  uploads.set(itemId, list);
+  const jobs = files.map(file => ({ file, key: Math.random().toString(36).slice(2), preview: URL.createObjectURL(file), pct: 0 }));
+  list.push(...jobs);
+  refreshStrip(itemId);
+  let ok = 0;
+  for (const job of jobs) {
+    try { await uploadOne(itemId, job); ok++; }
+    catch (err) { console.error(err); showToast(`Photo upload failed — ${err?.code || err?.message || 'error'}`); }
+    list.splice(list.indexOf(job), 1);
+    URL.revokeObjectURL(job.preview);
+    refreshStrip(itemId);
+  }
+  if (!list.length) uploads.delete(itemId);
+  if (ok) showToast(`${plural(ok, 'photo')} added to “${items[itemId]?.name || 'item'}”`);
+}
+// Full image + a small thumbnail (for tiles and strips), sharing one push key so the
+// Storage objects and the RTDB entry stay correlated: items/<itemId>/<photoId>.jpg / _t.jpg
+async function uploadOne(itemId, job) {
+  const pid = push(ref(_db, `items/${itemId}/photos`)).key;
+  const src = await decodeImage(job.file);
+  const full = await toJpeg(src, 1600, 0.7), thumb = await toJpeg(src, 360, 0.7);
+  src.close?.();
+  const path = `items/${itemId}/${pid}.jpg`, thumbPath = `items/${itemId}/${pid}_t.jpg`;
+  const meta = { contentType: 'image/jpeg', cacheControl: 'private, max-age=31536000' };
+  await new Promise((res, rej) => {
+    const task = uploadBytesResumable(sRef(_st, path), full.blob, meta);
+    task.on('state_changed', (s) => { job.pct = Math.round(s.bytesTransferred / (s.totalBytes || 1) * 100); refreshStrip(itemId); }, rej, res);
+  });
+  await uploadBytes(sRef(_st, thumbPath), thumb.blob, meta);
+  const [url, thumbUrl] = await Promise.all([getDownloadURL(sRef(_st, path)), getDownloadURL(sRef(_st, thumbPath))]);
+  await set(ref(_db, `items/${itemId}/photos/${pid}`), {
+    path, url, thumbPath, thumbUrl, w: full.w, h: full.h, size: full.blob.size, addedBy: me.email, addedAt: now(),
+  });
+}
+async function deletePhoto(itemId, pid) {
+  const p = items[itemId]?.photos?.[pid];
+  if (!p) return;
+  try {
+    await Promise.all([p.path, p.thumbPath].filter(Boolean).map(rmFile));
+    await update(ref(_db, `items/${itemId}/photos`), { [pid]: null });
+    buzz(20); showToast('Photo deleted');
+  } catch (err) { fail(err); }
+}
+
+// ── Lightbox: full-screen photos, swipe between them ────────────────────────
+let lbOpen = false, lbHist = false, lbItem = null, lbIds = [];
+$('lbClose').innerHTML = I.close;
+$('lbDel').innerHTML = I.trash;
+function openLightbox(itemId, pid) {
+  if (!photoList(itemId).length) return;
+  lbItem = itemId;
+  if (!lbOpen) { history.pushState({ lb: 1 }, ''); lbHist = true; }
+  lbOpen = true;
+  $('lightbox').classList.add('open');
+  document.body.classList.add('lb-open');
+  document.body.style.overflow = 'hidden';
+  renderLightbox(pid);
+}
+function renderLightbox(pid, fallbackIndex = 0) {
+  const list = photoList(lbItem);
+  if (!list.length) return closeLightbox();
+  lbIds = list.map(([k]) => k);
+  $('lbTitle').textContent = items[lbItem]?.name || '';
+  $('lbTrack').innerHTML = list.map(([, p]) => `<div class="lb-slide"><img src="${esc(p.url)}" alt="" draggable="false"></div>`).join('');
+  const i = lbIds.includes(pid) ? lbIds.indexOf(pid) : Math.min(fallbackIndex, lbIds.length - 1);
+  requestAnimationFrame(() => { $('lbTrack').scrollLeft = i * $('lbTrack').clientWidth; lbCounter(); });
+}
+function closeLightbox() {
+  lbOpen = false;
+  lbConfirm(false);
+  $('lightbox').classList.remove('open');
+  document.body.classList.remove('lb-open');
+  if (!searchOpen) document.body.style.overflow = '';
+  if (lbHist) { lbHist = false; ignorePop = true; history.back(); }
+}
+const lbIndex = () => Math.round($('lbTrack').scrollLeft / ($('lbTrack').clientWidth || 1));
+function lbCounter() { $('lbCount').textContent = lbIds.length > 1 ? `${lbIndex() + 1} of ${lbIds.length}` : ''; }
+function lbGo(d) { const t = $('lbTrack'); t.scrollTo({ left: (lbIndex() + d) * t.clientWidth, behavior: 'smooth' }); }
+function lbConfirm(show) { $('lbConfirm').classList.toggle('show', show); }
+$('lbTrack').addEventListener('scroll', lbCounter, { passive: true });
+$('lbClose').onclick = closeLightbox;
+$('lbDel').onclick = () => { buzz(8); lbConfirm(true); };        // delete, step 1 of 2
+$('lbKeep').onclick = () => lbConfirm(false);
+$('lbYes').onclick = async () => {                                  // delete, step 2 of 2
+  const i = lbIndex(), pid = lbIds[i];
+  lbConfirm(false);
+  await deletePhoto(lbItem, pid);
+  if (lbOpen) renderLightbox(null, i);
+};
 
 // ── Move picker ─────────────────────────────────────────────────────────────
 function openMove(id) {
