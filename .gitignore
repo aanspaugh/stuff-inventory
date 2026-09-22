@@ -1,0 +1,9 @@
+# Secrets — NEVER commit the Firebase service-account key
+secrets/
+*serviceAccount*.json
+*-sa.json
+
+# Scratch / dev
+_*.py
+artifacts/
+.DS_Store

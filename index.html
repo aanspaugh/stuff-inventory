@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Stuff Inventory</title>
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Stuff">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 56 18v28L32 58 8 46V18z' fill='%232563eb'/%3E%3Cpath d='M32 30 56 18M32 30 8 18M32 30v28' stroke='%23fff' stroke-opacity='.6' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      /* Slate + blue, high contrast (deliberately NOT themed) */
+      --bg:          #eef2f7;
+      --surface:     #ffffff;
+      --surface-2:   #f5f7fb;
+      --press:       #eaf0f8;
+      --border:      #e2e8f0;
+      --border-2:    #cbd5e1;
+      --text:        #0f172a;
+      --muted:       #475569;
+      --faint:       #94a3b8;
+      --primary:     #2563eb;
+      --primary-2:   #3b82f6;
+      --primary-soft:#dbeafe;
+      --danger:      #dc2626;
+      --danger-soft: #fee2e2;
+      --ok:          #16a34a;
+      --shadow:      0 1px 2px rgba(15,23,42,.06), 0 4px 14px rgba(15,23,42,.06);
+      --shadow-lg:   0 24px 60px rgba(15,23,42,.28);
+      --ease:        cubic-bezier(.32,.72,0,1);
+      --spring:      cubic-bezier(.34,1.56,.64,1);
+      --tap:         48px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:          #0a0f1c;
+        --surface:     #111a2d;
+        --surface-2:   #16213a;
+        --press:       #1b2843;
+        --border:      #1f2c47;
+        --border-2:    #2c3c5e;
+        --text:        #e8eef8;
+        --muted:       #a3b3cb;
+        --faint:       #64789a;
+        --primary:     #3b82f6;
+        --primary-2:   #60a5fa;
+        --primary-soft:rgba(59,130,246,.16);
+        --danger:      #f87171;
+        --danger-soft: rgba(248,113,113,.14);
+        --shadow:      0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+        --shadow-lg:   0 24px 60px rgba(0,0,0,.55);
+      }
+    }
+    html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh; line-height: 1.4; -webkit-font-smoothing: antialiased;
+      padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    }
+    [hidden] { display: none !important; }
+    button { font-family: inherit; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent; }
+    svg { display: block; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .site-header {
+      position: sticky; top: 0; z-index: 50; color: #fff;
+      background:
+        radial-gradient(120% 140% at 100% 0%, rgba(59,130,246,.45) 0%, transparent 55%),
+        linear-gradient(135deg, #0f172a 0%, #172554 60%, #1e3a8a 100%);
+      box-shadow: 0 6px 24px rgba(15,23,42,.25);
+      padding-top: env(safe-area-inset-top);
+    }
+    .header-in {
+      max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: .7rem;
+      padding: .8rem 1rem .9rem;
+    }
+    .brand { display: flex; align-items: center; gap: .7rem; flex: 1; min-width: 0; }
+    .brand-logo { width: 38px; height: 38px; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(37,99,235,.55)); }
+    .brand-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+    .brand-stats { font-size: .74rem; color: #bfdbfe; font-weight: 500; margin-top: .1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hbtn {
+      position: relative; flex-shrink: 0; width: 44px; height: 44px; border-radius: 13px;
+      display: grid; place-items: center; color: #fff;
+      background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14);
+      transition: background .15s, transform .15s var(--spring);
+    }
+    .hbtn:active { transform: scale(.9); background: rgba(255,255,255,.2); }
+    .hbtn svg { width: 21px; height: 21px; }
+    .badge {
+      position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 5px;
+      border-radius: 10px; background: #f87171; color: #fff; font-size: .66rem; font-weight: 800;
+      display: grid; place-items: center; border: 2px solid #172554;
+      animation: pop .4s var(--spring);
+    }
+
+    /* ── Tree ───────────────────────────────────────────── */
+    .wrap { max-width: 760px; margin: 0 auto; padding: 1rem .85rem; }
+    .node.root {
+      --accent: var(--primary);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      box-shadow: var(--shadow); margin-bottom: .8rem; overflow: hidden;
+    }
+    .tree.intro > .node { animation: rise .55s var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+    .row {
+      display: flex; align-items: center; gap: .65rem; min-height: 54px;
+      padding: .5rem .55rem .5rem .45rem; border-radius: 14px; cursor: pointer; user-select: none;
+      transition: background .18s, transform .18s var(--ease);
+    }
+    .row:active { transform: scale(.985); background: var(--press); }
+    .root > .row { padding: .85rem .8rem .85rem .75rem; border-radius: 0; }
+    .root > .row:active { transform: none; }
+    .chev {
+      width: 22px; height: 22px; flex-shrink: 0; color: var(--faint);
+      transition: transform .32s var(--ease), color .2s;
+    }
+    .chev.none { visibility: hidden; }
+    .node.open > .row .chev { transform: rotate(90deg); color: var(--accent); }
+    .tile {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+      background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent);
+    }
+    .tile svg { width: 18px; height: 18px; }
+    .tile.dot::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .7; }
+    .root > .row .tile {
+      width: 46px; height: 46px; border-radius: 14px; color: #fff; font-size: 1.2rem; font-weight: 800;
+      background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 70%, #fff) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 70%, #000) 100%);
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.35);
+    }
+    .main { flex: 1; min-width: 0; }
+    .name { font-weight: 600; font-size: .95rem; line-height: 1.25; word-break: break-word; }
+    .root > .row .name { font-size: 1.08rem; font-weight: 700; letter-spacing: -.01em; }
+    .qty {
+      display: inline-block; margin-left: .35rem; padding: .05rem .4rem; border-radius: 6px; vertical-align: 1px;
+      font-size: .7rem; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+    .sub { font-size: .76rem; color: var(--muted); margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub .count { font-weight: 600; color: var(--accent); }
+    .more {
+      flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; border: none; background: none;
+      display: grid; place-items: center; color: var(--faint); transition: background .15s, color .15s, transform .15s var(--spring);
+    }
+    .more:active { transform: scale(.88); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+    .more svg { width: 20px; height: 20px; }
+
+    .kids { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .36s var(--ease); }
+    .node.open > .kids { grid-template-rows: 1fr; }
+    .kids-in { overflow: hidden; min-height: 0; }
+    .kids-list {
+      margin: 0 0 .35rem 1.35rem; padding-left: .45rem;
+      border-left: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+      opacity: 0; transform: translateY(-6px); transition: opacity .25s, transform .36s var(--ease);
+    }
+    .root > .kids > .kids-in > .kids-list { margin: 0 .6rem .6rem 1.9rem; }
+    .node.open > .kids > .kids-in > .kids-list { opacity: 1; transform: none; }
+    .add-inside {
+      display: flex; align-items: center; gap: .5rem; width: 100%; min-height: 44px; margin: .1rem 0;
+      padding: .4rem .6rem; border: 1.5px dashed color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 12px;
+      background: none; color: var(--accent); font-size: .84rem; font-weight: 600; text-align: left;
+      transition: background .15s, transform .15s var(--ease);
+    }
+    .add-inside:active { transform: scale(.98); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .add-inside svg { width: 16px; height: 16px; }
+
+    .flash > .row { animation: flash 1.8s ease-out; }
+    @media (prefers-color-scheme: dark) {
+      /* accent text needs lifting to stay readable on dark surfaces */
+      .sub .count, .qty, .add-inside, .tile, .node.open > .row .chev { color: color-mix(in srgb, var(--accent) 55%, #fff); }
+      .add-inside { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+      .kids-list { border-left-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+    }
+
+    /* ── Empty state ────────────────────────────────────── */
+    .empty { text-align: center; padding: 3.5rem 1.5rem 2rem; animation: rise .6s var(--ease) both; }
+    .empty > svg { width: 150px; height: 120px; margin: 0 auto 1.2rem; animation: float 4s ease-in-out infinite; }
+    .empty h2 { font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; }
+    .empty p { color: var(--muted); font-size: .92rem; margin: .4rem auto 1.4rem; max-width: 20rem; }
+
+    /* ── FAB ────────────────────────────────────────────── */
+    .fab {
+      position: fixed; z-index: 60; right: max(1rem, env(safe-area-inset-right)); bottom: calc(1.1rem + env(safe-area-inset-bottom));
+      display: flex; align-items: center; gap: .45rem; height: 54px; padding: 0 1.2rem 0 1rem; border: none; border-radius: 18px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; font-size: .95rem; font-weight: 700;
+      box-shadow: 0 10px 28px rgba(37,99,235,.45), inset 0 1px 0 rgba(255,255,255,.25);
+      transition: transform .35s var(--ease), box-shadow .2s;
+    }
+    .fab:active { transform: scale(.94); }
+    .fab svg { width: 20px; height: 20px; }
+    body.toasting .fab { transform: translateY(-72px); }
+
+    /* ── Sheets ─────────────────────────────────────────── */
+    .backdrop {
+      position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+      background: rgba(8,12,24,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+      opacity: 0; visibility: hidden; transition: opacity .3s, visibility 0s .3s;
+    }
+    .backdrop.open { opacity: 1; visibility: visible; transition: opacity .3s; }
+    .sheet {
+      position: relative; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
+      background: var(--surface); border-radius: 24px 24px 0 0; box-shadow: var(--shadow-lg);
+      padding: 0 1.1rem calc(1.3rem + env(safe-area-inset-bottom));
+      transform: translateY(100%); transition: transform .42s var(--ease);
+    }
+    .backdrop.open .sheet { transform: none; }
+    .sheet.dragging { transition: none; }
+    @media (min-width: 640px) {
+      .backdrop { align-items: center; }
+      .sheet { border-radius: 24px; transform: translateY(24px) scale(.96); opacity: 0; transition: transform .38s var(--ease), opacity .25s; }
+      .backdrop.open .sheet { opacity: 1; }
+    }
+    .grab { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: .6rem 0 .3rem; touch-action: none; cursor: grab; }
+    .grab::before { content: ''; display: block; width: 42px; height: 5px; border-radius: 3px; background: var(--border-2); margin: 0 auto; }
+    .sheet-body.swap { animation: swapIn .32s var(--ease); }
+    .sheet h2 { font-size: 1.22rem; font-weight: 800; letter-spacing: -.015em; margin: .35rem 0 .2rem; }
+    .crumb { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; font-size: .78rem; color: var(--muted); margin-bottom: .6rem; }
+    .crumb span.sep { color: var(--faint); }
+    .crumb b { color: var(--primary); font-weight: 600; }
+    .field { margin-top: .9rem; }
+    .field > label { display: block; font-size: .74rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); margin-bottom: .35rem; }
+    .input, textarea.input {
+      width: 100%; font: inherit; font-size: 1rem; color: var(--text); padding: .75rem .85rem;
+      background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 13px; outline: none;
+      transition: border-color .15s, box-shadow .2s, background .15s;
+    }
+    textarea.input { min-height: 78px; resize: vertical; line-height: 1.45; }
+    .input:focus { border-color: var(--primary-2); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent); }
+    .input::placeholder { color: var(--faint); }
+    .stepper { display: inline-flex; align-items: center; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 13px; overflow: hidden; }
+    .stepper button { width: 46px; height: 46px; border: none; background: none; font-size: 1.3rem; font-weight: 600; color: var(--primary); transition: background .15s; }
+    .stepper button:active { background: var(--primary-soft); }
+    .stepper input { width: 52px; text-align: center; border: none; background: none; font: inherit; font-weight: 700; font-size: 1.05rem; color: var(--text); outline: none; -moz-appearance: textfield; }
+    .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .actions { display: flex; gap: .55rem; margin-top: 1.2rem; }
+    .btn {
+      flex: 1; min-height: 50px; border: none; border-radius: 14px; font-size: .95rem; font-weight: 700; padding: .6rem 1rem;
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+      transition: transform .15s var(--ease), filter .15s, background .15s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn svg { width: 18px; height: 18px; }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,.3); }
+    .btn-soft { background: var(--primary-soft); color: var(--primary); }
+    .btn-ghost { background: var(--surface-2); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--danger) 35%, transparent); }
+    .btn-danger-soft { background: var(--danger-soft); color: var(--danger); }
+    .tools { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-top: .9rem; }
+    .danger-link {
+      display: flex; align-items: center; justify-content: center; gap: .4rem; width: 100%; margin-top: 1.1rem;
+      padding: .7rem; border: none; background: none; color: var(--danger); font-size: .88rem; font-weight: 600; border-radius: 12px;
+    }
+    .danger-link:active { background: var(--danger-soft); }
+    .danger-link svg { width: 17px; height: 17px; }
+    .meta { font-size: .74rem; color: var(--faint); text-align: center; margin-top: .6rem; }
+    .hint { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+    .added-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .8rem; }
+    .added-chip {
+      display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; font-weight: 600; padding: .3rem .6rem; border-radius: 999px;
+      background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); animation: pop .45s var(--spring);
+    }
+
+    /* confirm sheets */
+    .confirm-ico { width: 64px; height: 64px; margin: .8rem auto .6rem; border-radius: 20px; display: grid; place-items: center; background: var(--danger-soft); color: var(--danger); animation: pop .5s var(--spring); }
+    .confirm-ico svg { width: 30px; height: 30px; }
+    .confirm-ico.soft { background: var(--primary-soft); color: var(--primary); }
+    .center { text-align: center; }
+    .confirm-body { color: var(--muted); font-size: .92rem; text-align: center; margin: .5rem auto 0; max-width: 24rem; }
+    .confirm-body strong { color: var(--text); }
+    .hold {
+      position: relative; overflow: hidden; width: 100%; min-height: 54px; margin-top: 1.2rem; border: none; border-radius: 14px;
+      background: var(--danger-soft); color: var(--danger); font-size: .95rem; font-weight: 700; user-select: none; -webkit-user-select: none; touch-action: none;
+    }
+    .hold::before {
+      content: ''; position: absolute; inset: 0; background: var(--danger); transform-origin: left; transform: scaleX(0);
+      transition: transform .25s ease-out;
+    }
+    .hold.holding::before { transform: scaleX(1); transition: transform 1.4s linear; }
+    .hold span { position: relative; transition: color .3s; }
+    .hold.holding span { color: #fff; }
+
+    /* list rows inside sheets (move picker, trash) */
+    .list { margin-top: .7rem; }
+    .lrow {
+      display: flex; align-items: center; gap: .65rem; width: 100%; padding: .65rem .6rem; border-radius: 14px; border: none; background: none;
+      text-align: left; transition: background .15s, transform .15s var(--ease);
+    }
+    button.lrow:active { background: var(--press); transform: scale(.985); }
+    .lrow + .lrow { border-top: 1px solid var(--border); border-radius: 0; }
+    .lrow .tile { width: 32px; height: 32px; }
+    .lrow .l-name { font-weight: 600; font-size: .93rem; }
+    .lrow .l-sub { font-size: .74rem; color: var(--muted); margin-top: .08rem; }
+    .lrow.current { opacity: .5; pointer-events: none; }
+    .tag { font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--primary); background: var(--primary-soft); padding: .15rem .45rem; border-radius: 6px; }
+    .trash-row { flex-wrap: wrap; }
+    .trash-actions { display: flex; gap: .45rem; width: 100%; padding-left: calc(32px + .65rem); margin-top: .45rem; }
+    .trash-actions .btn { min-height: 40px; font-size: .84rem; border-radius: 11px; }
+    .sheet .empty { padding: 2rem 1rem 1rem; }
+    .sheet .empty > svg { width: 100px; height: 80px; }
+
+    /* ── Toast ──────────────────────────────────────────── */
+    .toast {
+      position: fixed; z-index: 150; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom));
+      width: min(calc(100% - 1.6rem), 440px); display: flex; align-items: center; gap: .6rem;
+      padding: .75rem .75rem .75rem 1rem; border-radius: 16px; overflow: hidden;
+      background: #0f172a; color: #f1f5f9; box-shadow: 0 16px 40px rgba(15,23,42,.35); font-size: .9rem; font-weight: 500;
+      transform: translate(-50%, 160%); transition: transform .45s var(--ease);
+    }
+    @media (prefers-color-scheme: dark) { .toast { background: #1e293b; border: 1px solid #334155; } }
+    .toast.show { transform: translate(-50%, 0); }
+    /* While a sheet is open, toasts drop in from the top so they never cover sheet buttons */
+    body.sheet-open .toast { bottom: auto; top: calc(.8rem + env(safe-area-inset-top)); transform: translate(-50%, -160%); }
+    body.sheet-open .toast.show { transform: translate(-50%, 0); }
+    .toast .t-msg { flex: 1; min-width: 0; }
+    .toast .t-undo { border: none; background: rgba(96,165,250,.16); color: #93c5fd; font-weight: 700; font-size: .88rem; padding: .5rem .85rem; border-radius: 10px; }
+    .toast .t-undo:active { background: rgba(96,165,250,.3); }
+    .toast .t-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #60a5fa; transform-origin: left; }
+    .toast.show .t-bar { animation: drain var(--dur, 6s) linear forwards; }
+
+    /* ── Sign-in overlay ────────────────────────────────── */
+    #overlay {
+      position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1rem; text-align: center; padding: 2rem; color: #fff;
+      background:
+        radial-gradient(90% 60% at 50% 0%, rgba(59,130,246,.35), transparent 70%),
+        linear-gradient(160deg, #0f172a, #172554 70%, #1e3a8a);
+      transition: opacity .5s, visibility 0s .5s;
+    }
+    #overlay.gone { opacity: 0; visibility: hidden; }
+    #overlay .logo { width: 92px; height: 92px; animation: float 4s ease-in-out infinite; filter: drop-shadow(0 14px 30px rgba(59,130,246,.55)); }
+    #overlay h1 { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; }
+    #overlayMsg { color: #bfdbfe; font-size: 1rem; max-width: 22rem; min-height: 1.4em; }
+    .signin-btn {
+      display: none; align-items: center; gap: .65rem; margin-top: .4rem;
+      background: #fff; color: #0f172a; border: none; border-radius: 14px; padding: .85rem 1.3rem; font-size: 1rem; font-weight: 700;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3); transition: transform .15s var(--ease);
+    }
+    .signin-btn:active { transform: scale(.96); }
+    .signin-btn svg { width: 20px; height: 20px; }
+    .spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #60a5fa; animation: spin .8s linear infinite; }
+
+    /* ── Keyframes ──────────────────────────────────────── */
+    @keyframes rise   { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes pop    { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes float  { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @keyframes spin   { to { transform: rotate(360deg); } }
+    @keyframes drain  { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+    @keyframes swapIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+    @keyframes flash  {
+      0%   { background: color-mix(in srgb, var(--accent) 30%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+      100% { background: transparent; box-shadow: inset 3px 0 0 transparent; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header" id="appHeader" hidden>
+  <div class="header-in">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo"/></svg>
+      <div style="min-width:0">
+        <div class="brand-title">Stuff</div>
+        <div class="brand-stats" id="stats"></div>
+      </div>
+    </div>
+    <button class="hbtn" id="trashBtn" title="Trash" aria-label="Trash"></button>
+    <button class="hbtn" id="menuBtn" title="Menu" aria-label="Menu"></button>
+  </div>
+</header>
+
+<main class="wrap" id="appMain" hidden>
+  <div class="tree" id="tree"></div>
+</main>
+
+<button class="fab" id="fab" hidden></button>
+
+<div class="backdrop" id="backdrop">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true">
+    <div class="grab" id="grab"></div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="t-msg" id="toastMsg"></span>
+  <button class="t-undo" id="toastUndo">Undo</button>
+  <div class="t-bar"></div>
+</div>
+
+<div id="overlay">
+  <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo"/></svg>
+  <h1>Stuff</h1>
+  <div id="overlayMsg">Connecting…</div>
+  <div class="spinner" id="spinner"></div>
+  <button class="signin-btn" id="signInBtn">
+    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Sign in with Google
+  </button>
+</div>
+
+<!-- Shared logo symbol: isometric box with a tape stripe -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="lg-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient>
+    <linearGradient id="lg-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient>
+  </defs>
+  <symbol id="logo" viewBox="0 0 64 64">
+    <path d="M32 6 56 18 32 30 8 18z" fill="url(#lg-top)"/>
+    <path d="M8 18 32 30v28L8 46z" fill="url(#lg-l)"/>
+    <path d="M56 18 32 30v28l24-12z" fill="url(#lg-r)"/>
+    <path d="M20 12 44 24v9l-4 2v-9L16 14z" fill="#fff" fill-opacity=".9"/>
+  </symbol>
+</svg>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getDatabase, ref, onValue, set, update, push } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ============================================================================
+// CONFIG — Firebase project "stuff-inventory-4425d"
+// ============================================================================
+const _firebaseConfig = {
+  apiKey:            "AIzaSyDu0pdaG8c6_rw20T9nXnEIqAHGmy8lPCA",
+  authDomain:        "stuff-inventory-4425d.firebaseapp.com",
+  databaseURL:       "https://stuff-inventory-4425d-default-rtdb.firebaseio.com",
+  projectId:         "stuff-inventory-4425d",
+  storageBucket:     "stuff-inventory-4425d.firebasestorage.app",
+  messagingSenderId: "939034820842",
+  appId:             "1:939034820842:web:a95ccd47bc9c31992cd793"
+};
+// Friendly names for attribution display (maps the locked emails → short labels).
+const ALLOWED = {
+  "aanspaugh@gmail.com": "Aaron",
+  "janspaugh90@gmail.com": "Jessica",
+};
+
+const _app  = initializeApp(_firebaseConfig);
+const _auth = getAuth(_app);
+const _db   = getDatabase(_app);
+
+// ── Icons ───────────────────────────────────────────────────────────────────
+const I = {
+  chev:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  dots:  '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  box:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
+  menu:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  move:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  pin:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  undo:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+};
+const EMPTY_ART = `<svg viewBox="0 0 150 120" aria-hidden="true">
+  <ellipse cx="75" cy="108" rx="52" ry="7" fill="currentColor" opacity=".08"/>
+  <g transform="translate(22 44)"><path d="M28 0 56 14 28 28 0 14z" fill="#93c5fd"/><path d="M0 14 28 28v32L0 46z" fill="#3b82f6"/><path d="M56 14 28 28v32l28-14z" fill="#1d4ed8"/></g>
+  <g transform="translate(72 52)"><path d="M24 0 48 12 24 24 0 12z" fill="#a5b4fc"/><path d="M0 12 24 24v28L0 40z" fill="#6366f1"/><path d="M48 12 24 24v28l24-12z" fill="#4338ca"/></g>
+  <g transform="translate(50 6)"><path d="M22 0 44 11 22 22 0 11z" fill="#bae6fd"/><path d="M0 11 22 22v26L0 37z" fill="#0ea5e9"/><path d="M44 11 22 22v26l22-11z" fill="#0369a1"/></g>
+</svg>`;
+const ACCENTS = ['#2563eb', '#4f46e5', '#0284c7', '#0891b2', '#0d9488', '#1d4ed8'];
+
+// ── State ───────────────────────────────────────────────────────────────────
+let items = {};                 // itemId -> item (flat map, parentId pointers)
+let kidsLive = new Map();       // parentId|null -> [ids] of NOT-deleted items
+let kidsAll  = new Map();       // parentId|null -> [ids] of all items
+let me = null;
+const expanded = new Set();     // session-only expand state
+let pendingFocus = null;        // item to reveal + flash after the next render
+let firstRender = true;
+
+const $ = (id) => document.getElementById(id);
+const now = () => Date.now();
+const whoLabel = (email) => ALLOWED[email] || (email === 'claude' ? 'Claude' : (email ? email.split('@')[0] : '?'));
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const buzz = (ms = 8) => { try { navigator.vibrate?.(ms); } catch {} };
+const byName = (a, b) => (items[a].name || '').localeCompare(items[b].name || '', undefined, { numeric: true, sensitivity: 'base' });
+
+$('trashBtn').innerHTML = I.trash;
+$('menuBtn').innerHTML = I.menu;
+$('fab').innerHTML = `${I.plus}<span>Location</span>`;
+
+// ============================================================================
+// Auth
+// ============================================================================
+const _provider = new GoogleAuthProvider();
+_provider.setCustomParameters({ prompt: 'select_account' });
+let _accessDenied = false, _listening = false;
+
+function overlayState(msg, { signin = false, spin = false } = {}) {
+  $('overlayMsg').textContent = msg;
+  $('signInBtn').style.display = signin ? 'inline-flex' : 'none';
+  $('spinner').style.display = spin ? '' : 'none';
+}
+
+$('signInBtn').addEventListener('click', () => {
+  overlayState('Signing in…', { spin: true });
+  signInWithPopup(_auth, _provider).catch((err) => {
+    console.error('sign-in failed', err);
+    overlayState('Sign-in failed. Please try again.', { signin: true });
+  });
+});
+
+onAuthStateChanged(_auth, (user) => {
+  if (!user) {
+    overlayState(_accessDenied
+      ? "That account can't open this inventory. Sign in with an authorized Google account."
+      : 'Sign in to see where everything is', { signin: true });
+    return;
+  }
+  me = { email: user.email };
+  overlayState('Loading your stuff…', { spin: true });
+  if (_listening) return;
+  _listening = true;
+
+  onValue(ref(_db, 'items'), (snap) => {
+    items = snap.val() || {};
+    rebuildIndex();
+    if (firstRender) bootUI();
+    render();
+  }, (err) => {
+    console.warn('read denied', err);
+    _accessDenied = true; _listening = false;
+    signOut(_auth);
+  });
+});
+
+function bootUI() {
+  $('overlay').classList.add('gone');
+  $('appHeader').hidden = false;
+  $('appMain').hidden = false;
+  $('fab').hidden = false;
+}
+
+// ============================================================================
+// Model helpers
+// ============================================================================
+function parentOf(id) {
+  const p = items[id]?.parentId;
+  return (p && p !== id && items[p]) ? p : null;   // dangling parent → treat as a location
+}
+function rebuildIndex() {
+  kidsLive = new Map(); kidsAll = new Map();
+  for (const id of Object.keys(items)) {
+    const p = parentOf(id);
+    if (!kidsAll.has(p)) kidsAll.set(p, []);
+    kidsAll.get(p).push(id);
+    if (items[id].deleted) continue;
+    if (!kidsLive.has(p)) kidsLive.set(p, []);
+    kidsLive.get(p).push(id);
+  }
+}
+// Ancestors, nearest first (cycle-safe).
+function ancestors(id) {
+  const out = [], seen = new Set([id]);
+  let p = parentOf(id);
+  while (p && !seen.has(p)) { out.push(p); seen.add(p); p = parentOf(p); }
+  return out;
+}
+function isLive(id) { return items[id] && !items[id].deleted && ancestors(id).every(a => !items[a].deleted); }
+function descendants(id, map) {
+  const out = [], stack = [...(map.get(id) || [])];
+  while (stack.length) { const d = stack.pop(); if (out.includes(d)) continue; out.push(d); stack.push(...(map.get(d) || [])); }
+  return out;
+}
+const liveCount = (id) => descendants(id, kidsLive).length;
+const pathIds = (id) => ancestors(id).reverse();
+const pathText = (id) => pathIds(id).map(a => items[a].name).join(' › ');
+function accentOf(id) {
+  const root = pathIds(id)[0] || id;
+  let h = 0; for (const c of root) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return ACCENTS[h % ACCENTS.length];
+}
+// Trash entries = deleted items with no deleted ancestor (contents ride along with their container).
+function trashRoots() {
+  return Object.keys(items)
+    .filter(id => items[id].deleted && !ancestors(id).some(a => items[a].deleted))
+    .sort((a, b) => (items[b].deletedAt || 0) - (items[a].deletedAt || 0));
+}
+function ago(ts) {
+  if (!ts) return '';
+  const s = (now() - ts) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 86400 * 7) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// ============================================================================
+// Rendering
+// ============================================================================
+function render() {
+  const roots = (kidsLive.get(null) || []).sort(byName);
+  const things = Object.keys(items).filter(id => parentOf(id) && isLive(id)).length;
+  $('stats').textContent = `${plural(roots.length, 'location')} · ${plural(things, 'thing')}`;
+
+  const tc = trashRoots().length;
+  $('trashBtn').innerHTML = I.trash + (tc ? `<span class="badge">${tc}</span>` : '');
+
+  const tree = $('tree');
+  if (!roots.length) {
+    tree.innerHTML = `<div class="empty">${EMPTY_ART}
+      <h2>Nothing stored yet</h2>
+      <p>Start with a place, like the Storage Unit or the Basement. Then fill it with totes, shelves and the things inside them.</p>
+      <button class="btn btn-primary" style="flex:none;padding:0 1.4rem" data-new-location>${I.plus}Add your first location</button></div>`;
+  } else {
+    tree.innerHTML = roots.map((id, i) => nodeHTML(id, 0, i)).join('');
+  }
+  tree.classList.toggle('intro', firstRender);
+  firstRender = false;
+
+  if (pendingFocus) {
+    const el = tree.querySelector(`.node[data-id="${pendingFocus}"]`);
+    pendingFocus = null;
+    if (el) {
+      el.classList.add('flash');
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+    }
+  }
+}
+
+function nodeHTML(id, depth, i = 0) {
+  const it = items[id];
+  const kids = (kidsLive.get(id) || []).sort(byName);
+  const isRoot = depth === 0;
+  const container = isRoot || kids.length > 0;
+  const open = container && expanded.has(id);
+  const count = container ? liveCount(id) : 0;
+  const subParts = [];
+  if (container) subParts.push(`<span class="count">${count ? plural(count, 'thing') : 'Empty'}</span>`);
+  if (it.note) subParts.push(esc(it.note));
+  const tile = isRoot ? esc((it.name || '?').trim().charAt(0).toUpperCase())
+             : container ? I.box : '';
+  const style = isRoot ? ` style="--accent:${accentOf(id)};--i:${i}"` : '';
+  return `<div class="node${isRoot ? ' root' : ''}${open ? ' open' : ''}" data-id="${id}"${style}>
+    <div class="row" data-row="${id}" data-container="${container ? 1 : 0}">
+      <span class="chev${container ? '' : ' none'}">${I.chev}</span>
+      <span class="tile${!isRoot && !container ? ' dot' : ''}">${tile}</span>
+      <div class="main">
+        <div class="name">${esc(it.name)}${(it.qty || 1) > 1 ? `<span class="qty">×${it.qty}</span>` : ''}</div>
+        ${subParts.length ? `<div class="sub">${subParts.join(' · ')}</div>` : ''}
+      </div>
+      ${container ? `<button class="more" data-edit="${id}" aria-label="Edit ${esc(it.name)}">${I.dots}</button>` : ''}
+    </div>
+    ${container ? `<div class="kids"><div class="kids-in"><div class="kids-list">
+      ${kids.map(k => nodeHTML(k, depth + 1)).join('')}
+      <button class="add-inside" data-add="${id}">${I.plus}Add to ${esc(it.name)}</button>
+    </div></div></div>` : ''}
+  </div>`;
+}
+
+// Tree interactions (delegated)
+$('tree').addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.closest('[data-new-location]')) return openAdd(null);
+  const add = t.closest('[data-add]');
+  if (add) return openAdd(add.dataset.add);
+  const edit = t.closest('[data-edit]');
+  if (edit) return openEditor(edit.dataset.edit);
+  const row = t.closest('[data-row]');
+  if (!row) return;
+  const id = row.dataset.row;
+  if (row.dataset.container === '1') {
+    const node = row.parentElement;
+    const open = node.classList.toggle('open');
+    open ? expanded.add(id) : expanded.delete(id);
+    buzz(5);
+  } else {
+    openEditor(id);
+  }
+});
+$('fab').onclick = () => openAdd(null);
+
+function expandPath(id) { for (const a of ancestors(id)) expanded.add(a); }
+
+// ============================================================================
+// Writes
+// ============================================================================
+const iref = (id) => ref(_db, `items/${id}`);
+const stamp = () => ({ updatedBy: me.email, updatedAt: now() });
+const fail = (err) => { console.error(err); showToast(`Couldn't save — ${err?.code || err?.message || 'error'}`); };
+
+function addItem(parentId, name, qty, note) {
+  const r = push(ref(_db, 'items'));
+  const t = now();
+  const data = { name, qty, note, addedBy: me.email, createdAt: t, updatedBy: me.email, updatedAt: t, deleted: false };
+  if (parentId) { data.parentId = parentId; expanded.add(parentId); expandPath(parentId); }
+  pendingFocus = r.key;
+  set(r, data).catch(fail);
+  return r.key;
+}
+function saveItem(id, fields) { return update(iref(id), { ...fields, ...stamp() }).catch(fail); }
+
+function moveItem(id, newParent) {
+  const oldParent = items[id].parentId || null;
+  if (newParent) { expanded.add(newParent); expandPath(newParent); }
+  pendingFocus = id;
+  update(iref(id), { parentId: newParent || null, ...stamp() }).catch(fail);
+  buzz(12);
+  showToast(`Moved “${items[id].name}” to ${newParent ? items[newParent].name : 'top level'}`, () => {
+    pendingFocus = id;
+    if (oldParent) expandPath(id);
+    update(iref(id), { parentId: oldParent, ...stamp() }).catch(fail);
+  });
+}
+
+function trashItem(id) {
+  const name = items[id].name;
+  update(iref(id), { deleted: true, deletedAt: now(), ...stamp() }).catch(fail);
+  buzz(20);
+  showToast(`Moved “${name}” to Trash`, () => restoreItem(id, true));
+}
+function restoreItem(id, quiet) {
+  pendingFocus = id; expandPath(id);
+  update(iref(id), { deleted: false, deletedAt: null, ...stamp() }).catch(fail);
+  if (!quiet) {
+    const p = parentOf(id);
+    showToast(`Restored “${items[id].name}” ${p ? `to ${items[p].name}` : 'as a location'}`);
+  }
+}
+// Permanent delete: the DB rule only allows removing an item already flagged deleted,
+// so flag the whole subtree first, then remove it in one multi-path write.
+async function purgeItem(id) {
+  const ids = [id, ...descendants(id, kidsAll)];
+  const flag = {}, kill = {};
+  for (const d of ids) {
+    if (!items[d].deleted) { flag[`${d}/deleted`] = true; flag[`${d}/deletedAt`] = now(); }
+    kill[d] = null;
+  }
+  try {
+    if (Object.keys(flag).length) await update(ref(_db, 'items'), flag);
+    await update(ref(_db, 'items'), kill);
+    return true;
+  } catch (err) { fail(err); return false; }
+}
+
+// ============================================================================
+// Sheets
+// ============================================================================
+let sheetOpen = false;
+function openSheet(html, after) {
+  const body = $('sheetBody');
+  body.innerHTML = html;
+  if (sheetOpen) { body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap'); }
+  $('sheet').scrollTop = 0;
+  $('backdrop').classList.add('open');
+  document.body.classList.add('sheet-open');
+  sheetOpen = true;
+  wireSteppers(body);
+  after?.();
+}
+function closeSheet() {
+  $('backdrop').classList.remove('open');
+  document.body.classList.remove('sheet-open');
+  sheetOpen = false;
+  document.activeElement?.blur?.();
+}
+function focusSoon(id) { setTimeout(() => $(id)?.focus(), 380); }
+$('backdrop').addEventListener('click', (e) => { if (e.target === $('backdrop')) closeSheet(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetOpen) closeSheet(); });
+
+// Drag the handle down to dismiss.
+(() => {
+  const grab = $('grab'), sheet = $('sheet');
+  let y0 = null, dy = 0;
+  grab.addEventListener('pointerdown', (e) => { y0 = e.clientY; dy = 0; sheet.classList.add('dragging'); grab.setPointerCapture(e.pointerId); });
+  grab.addEventListener('pointermove', (e) => { if (y0 === null) return; dy = Math.max(0, e.clientY - y0); sheet.style.transform = `translateY(${dy}px)`; });
+  const end = () => {
+    if (y0 === null) return;
+    y0 = null; sheet.classList.remove('dragging'); sheet.style.transform = '';
+    if (dy > 90) closeSheet();
+  };
+  grab.addEventListener('pointerup', end);
+  grab.addEventListener('pointercancel', end);
+})();
+
+function stepperHTML(id, val) {
+  return `<div class="stepper"><button type="button" data-step="-1" data-for="${id}" aria-label="Less">−</button>
+    <input type="number" inputmode="numeric" min="1" id="${id}" value="${val}"><button type="button" data-step="1" data-for="${id}" aria-label="More">+</button></div>`;
+}
+function wireSteppers(root) {
+  root.querySelectorAll('[data-step]').forEach(b => b.onclick = () => {
+    const inp = $(b.dataset.for);
+    inp.value = Math.max(1, (parseInt(inp.value, 10) || 1) + Number(b.dataset.step));
+    buzz(5);
+  });
+}
+const qtyVal = (id) => Math.max(1, parseInt($(id).value, 10) || 1);
+
+function crumbHTML(parentId, label = 'In') {
+  if (!parentId) return `<div class="crumb">${I.pin.replace('<svg', '<svg width="14" height="14"')} New top-level location</div>`;
+  const parts = [...pathIds(parentId), parentId].map(a => esc(items[a].name));
+  const last = parts.pop();
+  return `<div class="crumb">${label} ${parts.map(p => `${p} <span class="sep">›</span>`).join(' ')} <b>${last}</b></div>`;
+}
+
+// ── Add ─────────────────────────────────────────────────────────────────────
+function openAdd(parentId) {
+  const isLoc = !parentId;
+  const added = [];
+  openSheet(`
+    <h2>${isLoc ? 'New location' : `Add to ${esc(items[parentId].name)}`}</h2>
+    ${crumbHTML(parentId)}
+    <div class="field"><label for="ad-name">Name</label>
+      <input class="input" id="ad-name" autocomplete="off" placeholder="${isLoc ? 'e.g. Storage Unit, Basement, Garage' : 'e.g. Blue tote, Christmas lights, Dune'}"></div>
+    <div class="field"><label>Quantity</label>${stepperHTML('ad-qty', 1)}</div>
+    <div class="field"><label for="ad-note">Note</label>
+      <textarea class="input" id="ad-note" placeholder="Optional: color, condition, which shelf…"></textarea></div>
+    <div class="actions">
+      <button class="btn btn-soft" id="ad-more">${I.plus}Add &amp; next</button>
+      <button class="btn btn-primary" id="ad-done">${I.check}Add</button>
+    </div>
+    <p class="hint">Tip: press Enter to add and keep going.</p>
+    <div class="added-list" id="ad-list"></div>`);
+  const submit = (keepGoing) => {
+    const name = $('ad-name').value.trim();
+    if (!name) { if (!keepGoing && added.length) closeSheet(); else $('ad-name').focus(); return; }
+    addItem(parentId, name, qtyVal('ad-qty'), $('ad-note').value.trim());
+    buzz(10);
+    if (keepGoing) {
+      added.push(name);
+      $('ad-list').insertAdjacentHTML('beforeend', `<span class="added-chip">${I.check.replace('<svg', '<svg width="13" height="13"')}${esc(name)}</span>`);
+      $('ad-name').value = ''; $('ad-note').value = ''; $('ad-qty').value = 1;
+      $('ad-name').focus();
+    } else closeSheet();
+  };
+  $('ad-more').onclick = () => submit(true);
+  $('ad-done').onclick = () => submit(false);
+  $('ad-name').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(true); } };
+  focusSoon('ad-name');
+}
+
+// ── Edit ────────────────────────────────────────────────────────────────────
+function openEditor(id) {
+  const it = items[id];
+  if (!it || !isLive(id)) return closeSheet();
+  const p = parentOf(id);
+  const n = liveCount(id);
+  const meta = [`Added by ${esc(whoLabel(it.addedBy))} ${ago(it.createdAt)}`];
+  if (it.updatedAt && it.updatedAt - (it.createdAt || 0) > 2000) meta.push(`edited by ${esc(whoLabel(it.updatedBy))} ${ago(it.updatedAt)}`);
+  openSheet(`
+    <h2>${p ? 'Edit item' : 'Edit location'}</h2>
+    ${p ? crumbHTML(p) : `<div class="crumb">${I.pin.replace('<svg', '<svg width="14" height="14"')} Location${n ? ` · ${plural(n, 'thing')} inside` : ''}</div>`}
+    <div class="field"><label for="ed-name">Name</label><input class="input" id="ed-name" autocomplete="off" value="${esc(it.name)}"></div>
+    <div class="field"><label>Quantity</label>${stepperHTML('ed-qty', it.qty || 1)}</div>
+    <div class="field"><label for="ed-note">Note</label><textarea class="input" id="ed-note" placeholder="Optional">${esc(it.note)}</textarea></div>
+    <div class="tools">
+      <button class="btn btn-ghost" id="ed-move">${I.move}Move to…</button>
+      <button class="btn btn-ghost" id="ed-add">${I.plus}Put inside</button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" id="ed-cancel">Cancel</button>
+      <button class="btn btn-primary" id="ed-save">${I.check}Save</button>
+    </div>
+    <button class="danger-link" id="ed-del">${I.trash}Delete ${p ? 'item' : 'location'}…</button>
+    <p class="meta">${meta.join(' · ')}</p>`);
+  const pending = () => {
+    const name = $('ed-name').value.trim() || it.name;
+    const f = { name, qty: qtyVal('ed-qty'), note: $('ed-note').value.trim() };
+    return (f.name !== it.name || f.qty !== (it.qty || 1) || f.note !== (it.note || '')) ? f : null;
+  };
+  const saveIfChanged = () => { const f = pending(); if (f) saveItem(id, f); };
+  $('ed-cancel').onclick = closeSheet;
+  $('ed-save').onclick = () => { const f = pending(); if (f) { pendingFocus = id; saveItem(id, f); } closeSheet(); };
+  $('ed-move').onclick = () => { saveIfChanged(); openMove(id); };
+  $('ed-add').onclick = () => { saveIfChanged(); openAdd(id); };
+  $('ed-del').onclick = () => { saveIfChanged(); openDeleteConfirm(id); };
+}
+
+// ── Move picker ─────────────────────────────────────────────────────────────
+function openMove(id) {
+  const it = items[id];
+  const cur = parentOf(id);
+  // Exclude the item itself and everything inside it (can't move a box into itself).
+  const banned = new Set([id, ...descendants(id, kidsAll)]);
+  const candidates = Object.keys(items)
+    .filter(c => !banned.has(c) && isLive(c))
+    .map(c => ({ id: c, path: [...pathIds(c), c].map(a => items[a].name).join(' › ') }))
+    .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }));
+  const rowHTML = (c) => {
+    const isRoot = !parentOf(c.id);
+    const where = pathText(c.id);
+    return `<button class="lrow${c.id === cur ? ' current' : ''}" data-dest="${c.id}" data-q="${esc(c.path.toLowerCase())}" style="--accent:${accentOf(c.id)}">
+      <span class="tile">${isRoot ? I.pin : I.box}</span>
+      <div class="main"><div class="l-name">${esc(items[c.id].name)}</div>${where ? `<div class="l-sub">${esc(where)}</div>` : '<div class="l-sub">Location</div>'}</div>
+      ${c.id === cur ? '<span class="tag">Here now</span>' : ''}
+    </button>`;
+  };
+  openSheet(`
+    <h2>Move “${esc(it.name)}”</h2>
+    ${cur ? crumbHTML(cur, 'Currently in') : '<div class="crumb">Currently a top-level location</div>'}
+    <input class="input" id="mv-q" placeholder="Find a destination…" autocomplete="off">
+    <div class="list" id="mv-list">
+      ${cur ? `<button class="lrow" data-dest="" data-q="top level location" style="--accent:var(--primary)">
+        <span class="tile">${I.pin}</span><div class="main"><div class="l-name">Make it a location</div><div class="l-sub">Top level, like Basement or Garage</div></div></button>` : ''}
+      ${candidates.map(rowHTML).join('')}
+    </div>
+    <div class="actions"><button class="btn btn-ghost" id="mv-back">Back</button></div>`);
+  $('mv-q').oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    $('mv-list').querySelectorAll('[data-dest]').forEach(r => r.hidden = q && !r.dataset.q.includes(q));
+  };
+  $('mv-list').querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { closeSheet(); moveItem(id, b.dataset.dest || null); });
+  $('mv-back').onclick = () => openEditor(id);
+}
+
+// ── Delete (step 2 of 2: confirm) ───────────────────────────────────────────
+function openDeleteConfirm(id) {
+  const it = items[id];
+  const n = liveCount(id);
+  openSheet(`
+    <div class="confirm-ico">${I.trash}</div>
+    <h2 class="center">Move “${esc(it.name)}” to Trash?</h2>
+    <p class="confirm-body">${n
+      ? `It holds <strong>${plural(n, 'thing')}</strong>. They go to Trash with it and come back together if you restore it.`
+      : 'You can restore it from Trash any time.'}</p>
+    <div class="actions">
+      <button class="btn btn-ghost" id="dc-no">Keep it</button>
+      <button class="btn btn-danger" id="dc-yes">${I.trash}Move to Trash</button>
+    </div>`);
+  $('dc-no').onclick = () => openEditor(id);
+  $('dc-yes').onclick = () => { closeSheet(); trashItem(id); };
+}
+
+// ── Trash ───────────────────────────────────────────────────────────────────
+function openTrash() {
+  const roots = trashRoots();
+  const rows = roots.map(id => {
+    const it = items[id];
+    const n = descendants(id, kidsAll).length;
+    const from = pathText(id);
+    return `<div class="lrow trash-row" style="--accent:${accentOf(id)}">
+      <span class="tile">${parentOf(id) ? I.box : I.pin}</span>
+      <div class="main">
+        <div class="l-name">${esc(it.name)}${n ? ` <span class="qty">+${n} inside</span>` : ''}</div>
+        <div class="l-sub">${from ? `From ${esc(from)} · ` : 'Location · '}deleted ${ago(it.deletedAt)}${it.updatedBy ? ` by ${esc(whoLabel(it.updatedBy))}` : ''}</div>
+      </div>
+      <div class="trash-actions">
+        <button class="btn btn-soft" data-restore="${id}">${I.undo}Restore</button>
+        <button class="btn btn-danger-soft" data-purge="${id}">${I.trash}Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+  openSheet(`
+    <h2>Trash</h2>
+    <p class="hint">Deleted things wait here. Restore puts them back where they were.</p>
+    ${roots.length ? `<div class="list">${rows}</div>` : `<div class="empty">${EMPTY_ART}<p>Trash is empty.</p></div>`}
+    <div class="actions"><button class="btn btn-ghost" id="tr-close">Close</button></div>`);
+  $('tr-close').onclick = closeSheet;
+  $('sheetBody').querySelectorAll('[data-restore]').forEach(b => b.onclick = () => { restoreItem(b.dataset.restore); openTrash(); });
+  $('sheetBody').querySelectorAll('[data-purge]').forEach(b => b.onclick = () => openPurgeConfirm(b.dataset.purge));
+}
+$('trashBtn').onclick = openTrash;
+
+// Permanent delete (step 2 of 2: press-and-hold, so it can't happen on a stray tap)
+function openPurgeConfirm(id) {
+  const it = items[id];
+  const n = descendants(id, kidsAll).length;
+  openSheet(`
+    <div class="confirm-ico">${I.alert}</div>
+    <h2 class="center">Delete “${esc(it.name)}” forever?</h2>
+    <p class="confirm-body">${n ? `This also permanently deletes the <strong>${plural(n, 'thing')}</strong> inside it. ` : ''}This <strong>can't be undone</strong>.</p>
+    <button class="hold" id="pc-hold"><span>Press and hold to delete forever</span></button>
+    <div class="actions"><button class="btn btn-ghost" id="pc-no">Cancel</button></div>`);
+  $('pc-no').onclick = openTrash;
+  const hold = $('pc-hold');
+  let timer = null;
+  const start = (e) => {
+    e.preventDefault();
+    hold.classList.add('holding'); buzz(10);
+    timer = setTimeout(async () => {
+      timer = null; buzz(40);
+      const name = it.name;
+      if (await purgeItem(id)) { openTrash(); showToast(`“${name}” deleted forever`); }
+    }, 1400);
+  };
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } hold.classList.remove('holding'); };
+  hold.addEventListener('pointerdown', start);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => hold.addEventListener(ev, cancel));
+  hold.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+// ── Menu ────────────────────────────────────────────────────────────────────
+$('menuBtn').onclick = () => {
+  openSheet(`
+    <h2>Menu</h2>
+    <p class="hint">Signed in as <strong>${esc(me?.email)}</strong></p>
+    <div class="tools">
+      <button class="btn btn-ghost" id="mn-exp">Expand all</button>
+      <button class="btn btn-ghost" id="mn-col">Collapse all</button>
+    </div>
+    <div class="actions"><button class="btn btn-ghost" id="mn-out">Sign out</button><button class="btn btn-primary" id="mn-close">Close</button></div>`);
+  $('mn-exp').onclick = () => { for (const [p, ks] of kidsLive) { if (p === null) ks.forEach(k => expanded.add(k)); else expanded.add(p); } closeSheet(); render(); };
+  $('mn-col').onclick = () => { expanded.clear(); closeSheet(); render(); };
+  $('mn-close').onclick = closeSheet;
+  $('mn-out').onclick = () => signOut(_auth).then(() => location.reload());
+};
+
+// ============================================================================
+// Toast (with Undo)
+// ============================================================================
+let toastTimer = null;
+function showToast(msg, undo, ms = 6000) {
+  const t = $('toast');
+  $('toastMsg').textContent = msg;
+  $('toastUndo').style.display = undo ? '' : 'none';
+  $('toastUndo').onclick = () => { hideToast(); undo?.(); buzz(10); };
+  t.style.setProperty('--dur', `${ms}ms`);
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  document.body.classList.add('toasting');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, ms);
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  $('toast').classList.remove('show');
+  document.body.classList.remove('toasting');
+}
+</script>
+</body>
+</html>

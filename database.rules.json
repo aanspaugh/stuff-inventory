@@ -1,0 +1,11 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'aanspaugh@gmail.com' || auth.token.email == 'janspaugh90@gmail.com')",
+
+    "items": {
+      "$itemId": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'aanspaugh@gmail.com' || auth.token.email == 'janspaugh90@gmail.com') && (newData.exists() || data.child('deleted').val() == true)"
+      }
+    }
+  }
+}
