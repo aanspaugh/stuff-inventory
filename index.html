@@ -478,7 +478,13 @@ let items = {};                 // itemId -> item (flat map, parentId pointers)
 let kidsLive = new Map();       // parentId|null -> [ids] of NOT-deleted items
 let kidsAll  = new Map();       // parentId|null -> [ids] of all items
 let me = null;
-const expanded = new Set();     // session-only expand state
+// Per-device memory, so the view survives the phone closing the app in the background.
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const expanded = new Set(LS.get('expanded', []));   // which containers are open
+const saveExpanded = () => LS.set('expanded', [...expanded]);
 let pendingFocus = null;        // item to reveal + flash after the next render
 let firstRender = true;
 
@@ -622,6 +628,12 @@ function render() {
     tree.innerHTML = roots.map((id, i) => nodeHTML(id, 0, i)).join('');
   }
   tree.classList.toggle('intro', firstRender);
+  if (firstRender) {
+    for (const id of expanded) if (!items[id]) expanded.delete(id);   // forget purged items
+    const y = LS.get('scrollY', 0);
+    if (y) requestAnimationFrame(() => window.scrollTo(0, y));
+  }
+  saveExpanded();
   firstRender = false;
 
   if (pendingFocus) {
@@ -679,6 +691,7 @@ $('tree').addEventListener('click', (e) => {
     const node = row.parentElement;
     const open = node.classList.toggle('open');
     open ? expanded.add(id) : expanded.delete(id);
+    saveExpanded();
     buzz(5);
   } else {
     openEditor(id);
@@ -752,11 +765,14 @@ async function purgeItem(id) {
 // ============================================================================
 // Sheets
 // ============================================================================
-let sheetOpen = false;
+// An open sheet owns one browser-history entry, so the phone's Back button closes the
+// sheet instead of leaving the app.
+let sheetOpen = false, sheetHist = false, ignorePop = false;
 function openSheet(html, after) {
   const body = $('sheetBody');
   body.innerHTML = html;
   if (sheetOpen) { body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap'); }
+  else if (!sheetHist) { history.pushState({ sheet: 1 }, ''); sheetHist = true; }
   $('sheet').scrollTop = 0;
   $('backdrop').classList.add('open');
   document.body.classList.add('sheet-open');
@@ -769,7 +785,17 @@ function closeSheet() {
   document.body.classList.remove('sheet-open');
   sheetOpen = false;
   document.activeElement?.blur?.();
+  if (sheetHist) { sheetHist = false; ignorePop = true; history.back(); }   // drop the sheet's history entry
 }
+window.addEventListener('popstate', () => {
+  if (ignorePop) { ignorePop = false; return; }
+  if (sheetOpen) { sheetHist = false; closeSheet(); }                        // Back button pressed
+});
+let scrollTimer = null;
+window.addEventListener('scroll', () => {
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => LS.set('scrollY', Math.round(window.scrollY)), 200);
+}, { passive: true });
 function focusSoon(id) { setTimeout(() => $(id)?.focus(), 380); }
 $('backdrop').addEventListener('click', (e) => { if (e.target === $('backdrop')) closeSheet(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetOpen) closeSheet(); });
