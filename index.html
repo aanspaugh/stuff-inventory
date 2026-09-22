@@ -317,16 +317,31 @@
       display: grid; place-items: center; background: var(--surface); color: var(--text); font-size: .62rem; font-weight: 800;
       box-shadow: 0 1px 4px rgba(15,23,42,.3);
     }
-    .photos { display: flex; gap: .6rem; overflow-x: auto; padding: .35rem .3rem .55rem; scrollbar-width: none; }
-    .ph.cover { box-shadow: 0 0 0 3px var(--primary), 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent); }
+    .photos { position: relative; display: flex; gap: .6rem; overflow-x: auto; padding: .35rem .3rem .55rem; scrollbar-width: none; }
+    /* The COVER spot is a fixed frame over the first position; photos slide in and out of it. */
+    .cover-slot {
+      position: absolute; z-index: 4; left: .3rem; top: .35rem; width: 78px; height: 78px; border-radius: 14px; pointer-events: none;
+      box-shadow: 0 0 0 3px var(--primary), 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent);
+      transition: box-shadow .25s;
+    }
+    .photos.dragging .cover-slot { box-shadow: 0 0 0 3px var(--primary), 0 0 0 9px color-mix(in srgb, var(--primary) 22%, transparent); }
+    .cover-slot.pulse { animation: slotPulse .5s var(--spring); }
+    @keyframes slotPulse { 40% { transform: scale(1.1); } }
     .cover-tag {
       position: absolute; left: 5px; bottom: 5px; padding: .08rem .38rem; border-radius: 6px; pointer-events: none;
       background: var(--primary); color: #fff; font-size: .58rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
     }
-    .ph[data-pid] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; transition: transform .18s var(--spring), opacity .15s, box-shadow .15s; }
-    .ph.lifted { transform: scale(1.12); z-index: 2; box-shadow: 0 14px 30px rgba(15,23,42,.4), 0 0 0 3px var(--primary-2); }
-    .photos.dragging .ph:not(.lifted) { opacity: .7; }
-    .ph-hint { margin-top: 0; margin-bottom: .55rem; font-size: .76rem; }
+    .ph[data-pid] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; transition: opacity .15s, box-shadow .15s; }
+    .ph.lifted { z-index: 3; transition: box-shadow .15s; box-shadow: 0 16px 34px rgba(15,23,42,.45), 0 0 0 2px var(--primary-2); }
+    .ph.settling { transition: transform .24s var(--ease); }
+    .drop-ghost {
+      position: absolute; top: .35rem; width: 78px; height: 78px; border-radius: 14px; pointer-events: none;
+      border: 2px dashed color-mix(in srgb, var(--primary) 55%, transparent); background: color-mix(in srgb, var(--primary) 6%, transparent);
+      transition: left .24s var(--ease);
+    }
+    .photos.dragging .ph:not(.lifted) { opacity: .75; }
+    .ph-hint { margin-top: 0; margin-bottom: .55rem; font-size: .76rem; transition: color .2s; }
+    .ph-hint.live { color: var(--primary); font-weight: 700; }
     .photos:empty { display: none; }
     .photos::-webkit-scrollbar { display: none; }
     .ph {
@@ -1249,9 +1264,9 @@ function wirePhotoInputs(prefix, onFiles) {
   }
 }
 function stripHTML(id) {
-  const saved = photoList(id).map(([pid, p], i) =>
-    `<button type="button" class="ph${i === 0 ? ' cover' : ''}" data-pid="${pid}" style="background-image:${cssUrl(p.thumbUrl || p.url)}" aria-label="Open photo">${
-      i === 0 ? '<span class="cover-tag">Cover</span>' : ''}</button>`);
+  const saved = photoList(id).map(([pid, p]) =>
+    `<button type="button" class="ph" data-pid="${pid}" style="background-image:${cssUrl(p.thumbUrl || p.url)}" aria-label="Open photo"></button>`);
+  if (saved.length) saved.unshift('<span class="cover-slot"><span class="cover-tag">Cover</span></span>');
   const busy = (uploads.get(id) || []).map(u =>
     `<span class="ph pending" style="background-image:${cssUrl(u.preview)}"><span class="pct">${u.pct ? `${u.pct}%` : '<span class="spinner"></span>'}</span><span class="bar" style="width:${u.pct}%"></span></span>`);
   return saved.concat(busy).join('');
@@ -1267,39 +1282,83 @@ function refreshStrip(id) {
 // Reorder by press-and-hold then drag. A quick swipe still scrolls the strip; only a
 // held finger (~0.3s without moving) picks the photo up.
 let noClickUntil = 0;
+// While held, the photo follows the finger; the others slide aside to show where it will land.
 function wireStripDrag(id) {
-  const strip = $('ed-photos');
-  let timer = null, drag = null, x0 = 0, y0 = 0;
-  const onMove = (e) => {
-    if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; }
-    if (!drag) return;
-    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ph[data-pid]');
-    if (over && over !== drag && over.parentElement === strip) {
-      const r = over.getBoundingClientRect();
-      const before = e.clientX < r.left + r.width / 2 ? over : over.nextSibling;
-      if (before !== drag && before !== drag.nextSibling) { strip.insertBefore(drag, before); buzz(6); markCover(); }
+  const strip = $('ed-photos'), hint = $('ed-ph-hint'), HINT = hint.textContent;
+  let timer = null, drag = null, x0 = 0, y0 = 0, grabX = 0, lastX = 0, lastY = 0;
+  const photosEls = () => [...strip.querySelectorAll('.ph[data-pid]')];
+  const contentX = (clientX) => clientX - strip.getBoundingClientRect().left + strip.scrollLeft;
+  const follow = () => {
+    const dx = contentX(lastX) - grabX - drag.offsetLeft;
+    const dy = Math.max(-16, Math.min(16, lastY - y0));
+    drag.style.transform = `translate(${dx}px, ${dy}px) scale(1.1)`;
+    ghost.style.left = `${drag.offsetLeft}px`;                     // dashed outline = where it will land
+  };
+  let ghost = null;
+  const setHint = () => {
+    const inCover = photosEls()[0] === drag;
+    hint.textContent = inCover ? 'Let go to make this the cover' : 'Drag into the COVER spot to make it the cover';
+  };
+  const pulseSlot = () => { const s = strip.querySelector('.cover-slot'); s.classList.remove('pulse'); void s.offsetWidth; s.classList.add('pulse'); };
+  // Move the dragged photo in the DOM and animate the neighbours from their old spots (FLIP).
+  const reorder = (move) => {
+    const others = photosEls().filter(el => el !== drag);
+    const before = new Map(others.map(el => [el, el.offsetLeft]));
+    move();
+    for (const el of others) {
+      const d = before.get(el) - el.offsetLeft;
+      if (!d) continue;
+      el.style.transition = 'none'; el.style.transform = `translateX(${d}px)`;
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .24s var(--ease)'; el.style.transform = ''; }));
     }
   };
-  const markCover = () => strip.querySelectorAll('.ph[data-pid]').forEach((el, i) => {
-    el.classList.toggle('cover', i === 0);
-    el.querySelector('.cover-tag')?.remove();
-    if (i === 0) el.insertAdjacentHTML('beforeend', '<span class="cover-tag">Cover</span>');
-  });
-  const onUp = () => {
-    clearTimeout(timer); timer = null;
+  const onMove = (e) => {
+    if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; stopListening(); return; }
+    if (!drag) return;
+    lastX = e.clientX; lastY = e.clientY;
+    const r = strip.getBoundingClientRect();                       // nudge the strip when dragging near its edges
+    if (lastX < r.left + 36) strip.scrollLeft -= 10; else if (lastX > r.right - 36) strip.scrollLeft += 10;
+    const others = photosEls().filter(el => el !== drag);
+    const centre = contentX(lastX) - grabX + drag.offsetWidth / 2;
+    const idx = others.filter(el => el.offsetLeft + el.offsetWidth / 2 < centre).length;
+    if (idx !== photosEls().indexOf(drag)) {
+      reorder(() => strip.insertBefore(drag, others[idx] || others[others.length - 1].nextSibling));
+      if (idx === 0) { pulseSlot(); buzz(16); } else buzz(6);
+      setHint();
+    }
+    follow();
+  };
+  const stopListening = () => {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+  };
+  const onUp = () => {
+    clearTimeout(timer); timer = null;
+    stopListening();
     if (!drag) return;
-    drag.classList.remove('lifted'); strip.classList.remove('dragging');
-    drag = null; noClickUntil = performance.now() + 400;   // the release isn't a "tap to open"
-    saveOrder(id, [...strip.querySelectorAll('.ph[data-pid]')].map(el => el.dataset.pid));
+    const el = drag; drag = null;
+    ghost?.remove(); ghost = null;
+    el.classList.remove('lifted'); el.classList.add('settling'); el.style.transform = '';   // glide into its spot
+    strip.classList.remove('dragging');
+    hint.textContent = HINT; hint.classList.remove('live');
+    noClickUntil = performance.now() + 400;                         // the release isn't a "tap to open"
+    const pids = photosEls().map(p => p.dataset.pid);
+    setTimeout(() => { el.classList.remove('settling'); saveOrder(id, pids); }, 260);
   };
   strip.addEventListener('pointerdown', (e) => {
     const ph = e.target.closest('.ph[data-pid]');
-    if (!ph || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    x0 = e.clientX; y0 = e.clientY;
-    timer = setTimeout(() => { timer = null; drag = ph; ph.classList.add('lifted'); strip.classList.add('dragging'); buzz(18); }, 300);
+    if (!ph || photosEls().length < 2 || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    x0 = lastX = e.clientX; y0 = lastY = e.clientY;
+    timer = setTimeout(() => {
+      timer = null; drag = ph;
+      grabX = contentX(x0) - ph.offsetLeft;
+      ghost = document.createElement('span'); ghost.className = 'drop-ghost';
+      ghost.style.transition = 'none'; strip.prepend(ghost);
+      requestAnimationFrame(() => { if (ghost) ghost.style.transition = ''; });
+      ph.classList.add('lifted'); strip.classList.add('dragging');
+      hint.classList.add('live'); setHint(); follow(); buzz(18);
+    }, 300);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
