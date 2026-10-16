@@ -2,7 +2,7 @@
   "name": "Stuff Inventory",
   "short_name": "Stuff",
   "description": "Where our stuff is stored",
-  "id": "./",
+  "id": "/stuff-inventory/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
